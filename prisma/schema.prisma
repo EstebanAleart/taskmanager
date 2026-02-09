@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  label     String
+  color     String    @default("")
+  bgColor   String    @default("")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  projects  Project[]
+  users     User[]
+
+  @@map("departments")
+}
+
+model FileType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  label     String
+  color     String   @default("")
+  bgColor   String   @default("")
+  extension String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files     File[]
+
+  @@map("file_types")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String
+  avatar        String          @default("")
+  role          String
+  departmentId  String
+  initials      String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  uploadedFiles File[]          @relation("FileUploader")
+  projects      ProjectMember[]
+  workspaces    WorkspaceMember[]
+  assignedTasks Task[]          @relation("TaskAssignee")
+  department    Department      @relation(fields: [departmentId], references: [id])
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  WorkspaceMember[]
+  projects Project[]
+  links    WorkspaceLink[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceLink {
+  id          String   @id @default(cuid())
+  title       String
+  url         String
+  workspaceId String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("workspace_links")
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        String   @default("member")
+  joinedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@id([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model Project {
+  id           String          @id @default(cuid())
+  name         String
+  description  String
+  departmentId String
+  workspaceId  String
+  color        String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  files        File[]
+  members      ProjectMember[]
+  department   Department      @relation(fields: [departmentId], references: [id])
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id])
+  tasks        Task[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  userId    String
+  projectId String
+  joinedAt  DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@id([userId, projectId])
+  @@map("project_members")
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String
+  priority    Priority
+  status      TaskStatus @default(pendiente)
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  projectId   String
+  assigneeId  String
+  assignee    User       @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  project     Project    @relation(fields: [projectId], references: [id])
+  tags        Tag[]      @relation("TagToTask")
+
+  @@map("tasks")
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  tasks Task[] @relation("TagToTask")
+
+  @@map("tags")
+}
+
+model File {
+  id           String   @id @default(cuid())
+  name         String
+  typeId       String
+  size         String
+  url          String
+  uploadedAt   DateTime @default(now())
+  projectId    String
+  uploadedById String
+  project      Project  @relation(fields: [projectId], references: [id])
+  type         FileType @relation(fields: [typeId], references: [id])
+  uploadedBy   User     @relation("FileUploader", fields: [uploadedById], references: [id])
+
+  @@map("files")
+}
+
+enum Priority {
+  urgente
+  alta
+  media
+  baja
+}
+
+enum TaskStatus {
+  pendiente
+  en_progreso
+  revision
+  completada
+}
