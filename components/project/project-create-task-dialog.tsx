@@ -20,75 +20,84 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  type Task,
-  type Priority,
-  type Department,
-  type KanbanColumn,
-  TEAM_MEMBERS,
-  DEPARTMENT_CONFIG,
-  PRIORITY_CONFIG,
-} from "@/lib/data";
+import { createTask } from "@/lib/actions/task";
+import { useRouter } from "next/navigation";
 
-interface CreateTaskDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  columns: KanbanColumn[];
-  defaultColumnId?: string;
-  onCreateTask: (task: Task) => void;
+interface ColumnOption {
+  id: string;
+  label: string;
 }
 
-export function CreateTaskDialog({
+interface PriorityOption {
+  id: string;
+  label: string;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
+  initials: string;
+}
+
+interface ProjectCreateTaskDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  projectId: string;
+  columns: ColumnOption[];
+  priorities: PriorityOption[];
+  users: UserOption[];
+  defaultColumnId?: string;
+}
+
+export function ProjectCreateTaskDialog({
   open,
   onOpenChange,
+  projectId,
   columns,
+  priorities,
+  users,
   defaultColumnId,
-  onCreateTask,
-}: CreateTaskDialogProps) {
+}: ProjectCreateTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [columnId, setColumnId] = useState(defaultColumnId || columns[0]?.id || "pendiente");
-  const [priority, setPriority] = useState<Priority>("media");
-  const [department, setDepartment] = useState<Department>("desarrollo");
-  const [assigneeId, setAssigneeId] = useState(TEAM_MEMBERS[0].id);
+  const [columnId, setColumnId] = useState(defaultColumnId || columns[0]?.id || "");
+  const [priorityId, setPriorityId] = useState(priorities[2]?.id || priorities[0]?.id || "");
+  const [assigneeId, setAssigneeId] = useState(users[0]?.id || "");
   const [tags, setTags] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = () => {
-    if (!title.trim()) return;
-
-    const assignee = TEAM_MEMBERS.find((m) => m.id === assigneeId) || TEAM_MEMBERS[0];
-    const newTask: Task = {
-      id: `t-${Date.now()}`,
-      title: title.trim(),
-      description: description.trim(),
-      columnId,
-      priority,
-      department,
-      assignee,
-      tags: tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
-      dueDate: dueDate || new Date().toISOString().split("T")[0],
-      comments: 0,
-      attachments: 0,
-      createdAt: new Date().toISOString().split("T")[0],
-      files: [],
-    };
-
-    onCreateTask(newTask);
-    resetForm();
-    onOpenChange(false);
+  const handleSubmit = async () => {
+    if (!title.trim() || !assigneeId || !columnId || !priorityId) return;
+    setLoading(true);
+    try {
+      await createTask(projectId, {
+        title: title.trim(),
+        description: description.trim(),
+        priorityId,
+        columnId,
+        assigneeId,
+        dueDate: dueDate || undefined,
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+      });
+      resetForm();
+      onOpenChange(false);
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setColumnId(defaultColumnId || columns[0]?.id || "pendiente");
-    setPriority("media");
-    setDepartment("desarrollo");
-    setAssigneeId(TEAM_MEMBERS[0].id);
+    setColumnId(defaultColumnId || columns[0]?.id || "");
+    setPriorityId(priorities[2]?.id || priorities[0]?.id || "");
+    setAssigneeId(users[0]?.id || "");
     setTags("");
     setDueDate("");
   };
@@ -99,12 +108,11 @@ export function CreateTaskDialog({
         <DialogHeader>
           <DialogTitle className="font-display text-lg">Nueva Tarea</DialogTitle>
           <DialogDescription>
-            Completa los datos para crear una nueva tarea en el tablero.
+            Completa los datos para crear una nueva tarea en el proyecto.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">
-          {/* Title */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="task-title">Titulo *</Label>
             <Input
@@ -121,7 +129,6 @@ export function CreateTaskDialog({
             />
           </div>
 
-          {/* Description */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="task-desc">Descripcion</Label>
             <Textarea
@@ -133,7 +140,6 @@ export function CreateTaskDialog({
             />
           </div>
 
-          {/* Column + Priority row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label>Columna</Label>
@@ -142,9 +148,9 @@ export function CreateTaskDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {columns.map((col) => (
-                    <SelectItem key={col.id} value={col.id}>
-                      {col.label}
+                  {columns.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -152,14 +158,14 @@ export function CreateTaskDialog({
             </div>
             <div className="flex flex-col gap-2">
               <Label>Prioridad</Label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
+              <Select value={priorityId} onValueChange={setPriorityId}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(PRIORITY_CONFIG) as Priority[]).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {PRIORITY_CONFIG[p].label}
+                  {priorities.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -167,50 +173,21 @@ export function CreateTaskDialog({
             </div>
           </div>
 
-          {/* Department + Assignee row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label>Sector</Label>
-              <Select value={department} onValueChange={(v) => setDepartment(v as Department)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(DEPARTMENT_CONFIG) as Department[]).map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {DEPARTMENT_CONFIG[d].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Asignado a</Label>
+              <Label>Asignado a *</Label>
               <Select value={assigneeId} onValueChange={setAssigneeId}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Seleccionar..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {TEAM_MEMBERS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name}
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-
-          {/* Tags + Due Date */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="task-tags">Etiquetas</Label>
-              <Input
-                id="task-tags"
-                placeholder="tag1, tag2, tag3"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="task-due">Fecha limite</Label>
@@ -222,22 +199,28 @@ export function CreateTaskDialog({
               />
             </div>
           </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="task-tags">Etiquetas</Label>
+            <Input
+              id="task-tags"
+              placeholder="tag1, tag2, tag3"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+            />
+          </div>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="bg-transparent"
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="bg-transparent">
             Cancelar
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!title.trim()}
+            disabled={!title.trim() || !assigneeId || loading}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            Crear Tarea
+            {loading ? "Creando..." : "Crear Tarea"}
           </Button>
         </DialogFooter>
       </DialogContent>

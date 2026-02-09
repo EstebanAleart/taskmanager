@@ -104,11 +104,42 @@ model Project {
   updatedAt    DateTime        @updatedAt
   files        File[]
   members      ProjectMember[]
+  columns      TaskColumn[]
+  priorities   PriorityLevel[]
   department   Department      @relation(fields: [departmentId], references: [id])
   workspace    Workspace       @relation(fields: [workspaceId], references: [id])
   tasks        Task[]
 
   @@map("projects")
+}
+
+model TaskColumn {
+  id        String  @id @default(cuid())
+  name      String
+  label     String
+  color     String  @default("")
+  icon      String  @default("")
+  order     Int     @default(0)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@map("task_columns")
+}
+
+model PriorityLevel {
+  id        String  @id @default(cuid())
+  name      String
+  label     String
+  color     String  @default("")
+  bgColor   String  @default("")
+  dotColor  String  @default("")
+  order     Int     @default(0)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@map("priority_levels")
 }
 
 model ProjectMember {
@@ -123,19 +154,21 @@ model ProjectMember {
 }
 
 model Task {
-  id          String     @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
   description String
-  priority    Priority
-  status      TaskStatus @default(pendiente)
+  priorityId  String
+  columnId    String
   dueDate     DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   projectId   String
   assigneeId  String
-  assignee    User       @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  project     Project    @relation(fields: [projectId], references: [id])
-  tags        Tag[]      @relation("TagToTask")
+  assignee    User          @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  column      TaskColumn    @relation(fields: [columnId], references: [id])
+  priority    PriorityLevel @relation(fields: [priorityId], references: [id])
+  project     Project       @relation(fields: [projectId], references: [id])
+  tags        Tag[]         @relation("TagToTask")
 
   @@map("tasks")
 }
@@ -164,16 +197,4 @@ model File {
   @@map("files")
 }
 
-enum Priority {
-  urgente
-  alta
-  media
-  baja
-}
 
-enum TaskStatus {
-  pendiente
-  en_progreso
-  revision
-  completada
-}

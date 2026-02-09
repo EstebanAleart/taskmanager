@@ -26,10 +26,10 @@ export function TeamView() {
             (t) => t.assignee.id === member.id
           );
           const completedTasks = memberTasks.filter(
-            (t) => t.status === "completada"
+            (t) => t.columnId === "completada"
           );
           const inProgressTasks = memberTasks.filter(
-            (t) => t.status === "en_progreso"
+            (t) => t.columnId === "en_progreso"
           );
 
           return (
