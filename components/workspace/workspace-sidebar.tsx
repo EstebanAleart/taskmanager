@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Users,
   FolderKanban,
+  BarChart3,
   ChevronDown,
   Plus,
   Search,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -35,16 +35,26 @@ interface ProjectItem {
   _count: { tasks: number };
 }
 
+interface DepartmentItem {
+  id: string;
+  name: string;
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
 interface WorkspaceSidebarProps {
   workspaceId: string;
   workspaceName: string;
   members: MemberItem[];
   projects: ProjectItem[];
+  departments: DepartmentItem[];
 }
 
 const NAV_ITEMS = [
-  { id: "miembros", label: "Miembros", icon: Users },
   { id: "proyectos", label: "Proyectos", icon: FolderKanban },
+  { id: "miembros", label: "Miembros", icon: Users },
+  { id: "reportes", label: "Reportes", icon: BarChart3 },
 ];
 
 export function WorkspaceSidebar({
@@ -52,16 +62,15 @@ export function WorkspaceSidebar({
   workspaceName,
   members,
   projects,
+  departments,
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [membersOpen, setMembersOpen] = useState(true);
+  const [sectorsOpen, setSectorsOpen] = useState(true);
 
-  // Detect if we're on a project page
   const projectMatch = pathname.match(/\/project\/([^/]+)/);
   const activeProjectId = projectMatch ? projectMatch[1] : null;
-  const isOnWorkspacePage = !activeProjectId;
-
 
   return (
     <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
@@ -101,12 +110,7 @@ export function WorkspaceSidebar({
               <Link
                 key={item.id}
                 href={`/workspace/${workspaceId}?section=${item.id}`}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isOnWorkspacePage
-                    ? "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                )}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
@@ -171,6 +175,47 @@ export function WorkspaceSidebar({
             </div>
           )}
         </div>
+
+        {/* Sectors (departments) */}
+        {departments.length > 0 && (
+          <div className="mt-6">
+            <button
+              onClick={() => setSectorsOpen(!sectorsOpen)}
+              className="flex w-full items-center justify-between px-3 py-1"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">
+                Sectores
+              </p>
+              <ChevronDown
+                className={cn(
+                  "h-3 w-3 text-sidebar-foreground/60 transition-transform",
+                  !sectorsOpen && "-rotate-90"
+                )}
+              />
+            </button>
+            {sectorsOpen && (
+              <div className="mt-2 space-y-1">
+                {departments.map((dept) => (
+                  <Link
+                    key={dept.id}
+                    href={`/workspace/${workspaceId}?section=sector&dept=${dept.id}`}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex h-5 items-center rounded px-1.5 text-[10px] font-medium",
+                        dept.bgColor,
+                        dept.color
+                      )}
+                    >
+                      {dept.label}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Members list */}
         <div className="mt-6">

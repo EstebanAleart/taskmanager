@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getWorkspace } from "@/lib/queries";
+import { getWorkspace, getDepartments } from "@/lib/queries";
 import { WorkspaceLayoutClient } from "@/components/workspace/workspace-layout-client";
 
 interface WorkspaceLayoutProps {
@@ -17,6 +17,16 @@ export default async function WorkspaceLayout({
   if (!workspace) {
     notFound();
   }
+
+  const departments = await getDepartments();
+
+  const sidebarDepartments = departments.map((d) => ({
+    id: d.id,
+    name: d.name,
+    label: d.label,
+    color: d.color,
+    bgColor: d.bgColor,
+  }));
 
   const sidebarMembers = workspace.members.map((m) => ({
     userId: m.userId,
@@ -41,6 +51,7 @@ export default async function WorkspaceLayout({
       workspaceName={workspace.name}
       members={sidebarMembers}
       projects={sidebarProjects}
+      departments={sidebarDepartments}
     >
       {children}
     </WorkspaceLayoutClient>

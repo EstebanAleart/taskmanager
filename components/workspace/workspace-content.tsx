@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { WorkspaceMembers } from "@/components/workspace/workspace-members";
 import { WorkspaceProjects } from "@/components/workspace/workspace-projects";
+import { WorkspaceReports } from "@/components/workspace/workspace-reports";
+import { WorkspaceSectorView } from "@/components/workspace/workspace-sector-view";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 
 interface MemberItem {
@@ -32,6 +34,50 @@ interface DepartmentItem {
   label: string;
 }
 
+interface ReportTask {
+  id: string;
+  columnId: string;
+  dueDate: string | null;
+  column: { name: string };
+  priority: { name: string };
+}
+
+interface ReportProject {
+  id: string;
+  name: string;
+  color: string;
+  departments: { id: string; name: string; label: string; color: string; bgColor: string }[];
+  tasks: ReportTask[];
+}
+
+interface SectorTask {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: string | null;
+  createdAt: string;
+  column: { name: string; label: string; color: string };
+  priority: { name: string; label: string; color: string; dotColor: string };
+  assignee: {
+    id: string;
+    name: string;
+    initials: string;
+    department: { label: string; color: string; bgColor: string };
+  };
+  project: {
+    id: string;
+    name: string;
+    color: string;
+    departments: { label: string }[];
+  };
+  tags: { id: string; name: string }[];
+}
+
+interface SectorData {
+  department: { id: string; name: string; label: string; color: string; bgColor: string };
+  tasks: SectorTask[];
+}
+
 interface WorkspaceContentProps {
   workspace: {
     id: string;
@@ -42,12 +88,16 @@ interface WorkspaceContentProps {
   };
   departments: DepartmentItem[];
   activeSection: string;
+  reportProjects?: ReportProject[] | null;
+  sectorData?: SectorData | null;
 }
 
 export function WorkspaceContent({
   workspace,
   departments,
   activeSection,
+  reportProjects,
+  sectorData,
 }: WorkspaceContentProps) {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
 
@@ -71,12 +121,28 @@ export function WorkspaceContent({
           </div>
         )}
 
-        {(activeSection === "proyectos" || activeSection === "notas" || activeSection === "links") && (
+        {activeSection === "proyectos" && (
           <div className="mx-auto max-w-4xl">
             <WorkspaceProjects
               workspaceId={workspace.id}
               projects={workspace.projects}
               departments={departments}
+            />
+          </div>
+        )}
+
+        {activeSection === "reportes" && reportProjects && (
+          <div className="mx-auto max-w-4xl">
+            <WorkspaceReports projects={reportProjects} />
+          </div>
+        )}
+
+        {activeSection === "sector" && sectorData && (
+          <div className="mx-auto max-w-5xl">
+            <WorkspaceSectorView
+              department={sectorData.department}
+              tasks={sectorData.tasks}
+              workspaceId={workspace.id}
             />
           </div>
         )}

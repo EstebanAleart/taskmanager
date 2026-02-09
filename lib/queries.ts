@@ -77,6 +77,45 @@ export async function getProjectMembers(projectId: string) {
   return project?.workspace.members.map((m) => m.user) ?? [];
 }
 
+export async function getWorkspaceStats(workspaceId: string) {
+  return prisma.project.findMany({
+    where: { workspaceId },
+    include: {
+      departments: true,
+      columns: true,
+      tasks: {
+        include: {
+          column: true,
+          priority: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getWorkspaceTasksByDepartment(
+  workspaceId: string,
+  departmentId: string
+) {
+  return prisma.task.findMany({
+    where: {
+      project: {
+        workspaceId,
+        departments: { some: { id: departmentId } },
+      },
+    },
+    include: {
+      assignee: { include: { department: true } },
+      column: true,
+      priority: true,
+      project: { include: { departments: true } },
+      tags: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function getAvailableUsers(workspaceId: string) {
   const currentMembers = await prisma.workspaceMember.findMany({
     where: { workspaceId },

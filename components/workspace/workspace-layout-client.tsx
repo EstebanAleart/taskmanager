@@ -23,11 +23,20 @@ interface ProjectItem {
   _count: { tasks: number };
 }
 
+interface DepartmentItem {
+  id: string;
+  name: string;
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
 interface WorkspaceLayoutClientProps {
   workspaceId: string;
   workspaceName: string;
   members: MemberItem[];
   projects: ProjectItem[];
+  departments: DepartmentItem[];
   children: React.ReactNode;
 }
 
@@ -36,6 +45,7 @@ export function WorkspaceLayoutClient({
   workspaceName,
   members,
   projects,
+  departments,
   children,
 }: WorkspaceLayoutClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -62,6 +72,7 @@ export function WorkspaceLayoutClient({
           workspaceName={workspaceName}
           members={members}
           projects={projects}
+          departments={departments}
         />
       </div>
 
