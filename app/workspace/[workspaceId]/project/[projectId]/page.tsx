@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProject } from "@/lib/actions/project";
-import { getProjectMembers } from "@/lib/actions/task";
+import { getProject, getProjectMembers } from "@/lib/queries";
 import { ProjectContent } from "@/components/project/project-content";
 
 interface ProjectPageProps {

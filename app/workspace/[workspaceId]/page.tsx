@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getWorkspace } from "@/lib/actions/workspace";
-import { getDepartments } from "@/lib/actions/project";
+import { getWorkspace, getDepartments } from "@/lib/queries";
 import { WorkspaceContent } from "@/components/workspace/workspace-content";
 
 interface WorkspacePageProps {

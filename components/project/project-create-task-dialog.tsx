@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createTask } from "@/lib/actions/task";
 import { useRouter } from "next/navigation";
 
 interface ColumnOption {
@@ -72,17 +71,22 @@ export function ProjectCreateTaskDialog({
     if (!title.trim() || !assigneeId || !columnId || !priorityId) return;
     setLoading(true);
     try {
-      await createTask(projectId, {
-        title: title.trim(),
-        description: description.trim(),
-        priorityId,
-        columnId,
-        assigneeId,
-        dueDate: dueDate || undefined,
-        tags: tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
+      await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          title: title.trim(),
+          description: description.trim(),
+          priorityId,
+          columnId,
+          assigneeId,
+          dueDate: dueDate || undefined,
+          tags: tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+        }),
       });
       resetForm();
       onOpenChange(false);

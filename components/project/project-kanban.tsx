@@ -29,7 +29,6 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { ProjectCreateTaskDialog } from "@/components/project/project-create-task-dialog";
-import { moveTask, deleteTask, addColumn, deleteColumn, renameColumn } from "@/lib/actions/task";
 import { AddColumnDialog } from "@/components/add-column-dialog";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -121,7 +120,11 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
       e.preventDefault();
       const taskId = e.dataTransfer.getData("taskId");
       if (taskId) {
-        await moveTask(taskId, columnId);
+        await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ columnId }),
+        });
         router.refresh();
       }
       setDragOverColumn(null);
@@ -131,7 +134,11 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
 
   const handleMoveTask = useCallback(
     async (taskId: string, targetColumnId: string) => {
-      await moveTask(taskId, targetColumnId);
+      await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ columnId: targetColumnId }),
+      });
       router.refresh();
     },
     [router]
@@ -139,7 +146,7 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
-      await deleteTask(taskId);
+      await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
       router.refresh();
     },
     [router]
@@ -151,15 +158,23 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
   };
 
   const handleAddColumn = async (column: { id: string; label: string; color: string; icon: string }) => {
-    const name = column.label.toLowerCase().replace(/\s+/g, "_");
-    await addColumn(projectId, name, column.label, column.color, column.icon);
+    await fetch(`/api/projects/${projectId}/columns`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: column.label.toLowerCase().replace(/\s+/g, "_"),
+        label: column.label,
+        color: column.color,
+        icon: column.icon,
+      }),
+    });
     router.refresh();
   };
 
   const handleDeleteColumn = async (columnId: string) => {
     const firstCol = columns.find((c) => c.id !== columnId);
     if (!firstCol) return;
-    await deleteColumn(columnId, firstCol.id);
+    await fetch(`/api/columns/${columnId}?moveTo=${firstCol.id}`, { method: "DELETE" });
     router.refresh();
   };
 
@@ -170,7 +185,11 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
 
   const finishRenaming = async (columnId: string) => {
     if (editLabel.trim()) {
-      await renameColumn(columnId, editLabel.trim());
+      await fetch(`/api/columns/${columnId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: editLabel.trim() }),
+      });
       router.refresh();
     }
     setEditingColumn(null);

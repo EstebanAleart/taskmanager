@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Database } from "lucide-react";
-import { seedDatabase } from "@/lib/actions/seed";
 import { useRouter } from "next/navigation";
 
 export function SeedButton() {
@@ -15,9 +14,10 @@ export function SeedButton() {
     setLoading(true);
     setMessage("");
     try {
-      const result = await seedDatabase();
-      setMessage(result.message);
-      if (result.success) {
+      const res = await fetch("/api/seed", { method: "POST" });
+      const data = await res.json();
+      setMessage(data.message);
+      if (data.success) {
         router.refresh();
       }
     } catch {

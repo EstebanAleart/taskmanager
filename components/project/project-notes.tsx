@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { StickyNote, Check } from "lucide-react";
-import { updateProjectNotes } from "@/lib/actions/project";
 
 interface ProjectNotesProps {
   projectId: string;
@@ -16,7 +15,11 @@ export function ProjectNotes({ projectId, initialNotes }: ProjectNotesProps) {
 
   const saveNotes = useCallback(
     async (value: string) => {
-      await updateProjectNotes(projectId, value);
+      await fetch(`/api/projects/${projectId}/notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: value }),
+      });
       setSaved(true);
     },
     [projectId]

@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { LayoutDashboard } from "lucide-react";
-import { getWorkspaces } from "@/lib/actions/workspace";
-import { prisma } from "@/lib/prisma";
+import { getWorkspaces, getDepartmentCount } from "@/lib/queries";
 import { DashboardClient } from "@/components/dashboard-client";
 
 export default async function DashboardPage() {
   const workspaces = await getWorkspaces();
-  const deptCount = await prisma.department.count();
+  const deptCount = await getDepartmentCount();
   const needsSeed = deptCount === 0;
 
   return (

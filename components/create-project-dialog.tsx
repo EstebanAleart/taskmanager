@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createProject } from "@/lib/actions/project";
 import { useRouter } from "next/navigation";
 
 const PROJECT_COLORS = [
@@ -64,11 +63,16 @@ export function CreateProjectDialog({
     if (!name.trim() || !departmentId) return;
     setLoading(true);
     try {
-      await createProject(workspaceId, {
-        name: name.trim(),
-        description: description.trim(),
-        departmentId,
-        color,
+      await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          name: name.trim(),
+          description: description.trim(),
+          departmentId,
+          color,
+        }),
       });
       setName("");
       setDescription("");

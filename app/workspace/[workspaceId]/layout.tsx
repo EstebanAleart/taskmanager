@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getWorkspace } from "@/lib/actions/workspace";
+import { getWorkspace } from "@/lib/queries";
 import { WorkspaceLayoutClient } from "@/components/workspace/workspace-layout-client";
 
 interface WorkspaceLayoutProps {

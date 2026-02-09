@@ -12,11 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  getAvailableUsers,
-  addMember,
-  removeMember,
-} from "@/lib/actions/workspace-members";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -52,14 +47,20 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
   const router = useRouter();
 
   useEffect(() => {
-    getAvailableUsers(workspaceId).then(setAvailableUsers);
+    fetch(`/api/workspaces/${workspaceId}/available-users`)
+      .then((res) => res.json())
+      .then(setAvailableUsers);
   }, [workspaceId, members]);
 
   const handleAdd = async () => {
     if (!selectedUserId) return;
     setLoading(true);
     try {
-      await addMember(workspaceId, selectedUserId);
+      await fetch(`/api/workspaces/${workspaceId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId }),
+      });
       setSelectedUserId("");
       router.refresh();
     } finally {
@@ -68,7 +69,9 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
   };
 
   const handleRemove = async (userId: string) => {
-    await removeMember(workspaceId, userId);
+    await fetch(`/api/workspaces/${workspaceId}/members/${userId}`, {
+      method: "DELETE",
+    });
     router.refresh();
   };
 
@@ -82,7 +85,6 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
         </span>
       </div>
 
-      {/* Member list */}
       <div className="mb-4 flex flex-col gap-2">
         {members.length === 0 && (
           <p className="text-sm text-muted-foreground">No hay miembros todavia.</p>
@@ -121,7 +123,6 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
         ))}
       </div>
 
-      {/* Add member */}
       {availableUsers.length > 0 && (
         <div className="flex gap-2">
           <Select value={selectedUserId} onValueChange={setSelectedUserId}>

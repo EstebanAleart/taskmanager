@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createWorkspace } from "@/lib/actions/workspace";
 import { useRouter } from "next/navigation";
 
 interface CreateWorkspaceDialogProps {
@@ -31,10 +30,12 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
     if (!name.trim()) return;
     setLoading(true);
     try {
-      const workspace = await createWorkspace({
-        name: name.trim(),
-        description: description.trim(),
+      const res = await fetch("/api/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), description: description.trim() }),
       });
+      const workspace = await res.json();
       setName("");
       setDescription("");
       onOpenChange(false);

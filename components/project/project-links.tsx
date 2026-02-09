@@ -4,7 +4,6 @@ import { useState } from "react";
 import { LinkIcon, Plus, Trash2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { addLink, deleteLink } from "@/lib/actions/workspace-links";
 import { useRouter } from "next/navigation";
 
 interface LinkItem {
@@ -28,7 +27,11 @@ export function ProjectLinks({ projectId, links }: ProjectLinksProps) {
     if (!title.trim() || !url.trim()) return;
     setLoading(true);
     try {
-      await addLink(projectId, title.trim(), url.trim());
+      await fetch(`/api/projects/${projectId}/links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), url: url.trim() }),
+      });
       setTitle("");
       setUrl("");
       router.refresh();
@@ -38,7 +41,7 @@ export function ProjectLinks({ projectId, links }: ProjectLinksProps) {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteLink(id, projectId);
+    await fetch(`/api/projects/${projectId}/links/${id}`, { method: "DELETE" });
     router.refresh();
   };
 
