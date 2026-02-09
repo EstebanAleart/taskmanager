@@ -7,12 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { cn } from "@/lib/utils";
 
+interface DepartmentBadge {
+  name: string;
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
 interface ProjectItem {
   id: string;
   name: string;
   description: string;
   color: string;
-  department: { name: string; label: string; color: string; bgColor: string };
+  departments: DepartmentBadge[];
   _count: { tasks: number; members: number };
 }
 
@@ -61,16 +68,17 @@ export function WorkspaceProjects({ workspaceId, projects, departments }: Worksp
               </div>
               <div>
                 <h3 className="font-semibold text-card-foreground">{project.name}</h3>
-                <Badge
-                  variant="secondary"
-                  className={cn(
-                    "mt-1 text-xs",
-                    project.department.bgColor,
-                    project.department.color
-                  )}
-                >
-                  {project.department.label}
-                </Badge>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {project.departments.map((dept) => (
+                    <Badge
+                      key={dept.name}
+                      variant="secondary"
+                      className={cn("text-xs", dept.bgColor, dept.color)}
+                    >
+                      {dept.label}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </div>
             <p className="mb-3 text-sm text-muted-foreground line-clamp-2">

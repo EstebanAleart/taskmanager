@@ -40,11 +40,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       workspaceId={workspaceId}
       projectName={project.name}
       projectColor={project.color}
-      department={{
-        label: project.department.label,
-        color: project.department.color,
-        bgColor: project.department.bgColor,
-      }}
+      departments={project.departments.map((d) => ({
+        label: d.label,
+        color: d.color,
+        bgColor: d.bgColor,
+      }))}
       taskCount={project.tasks.length}
       notes={project.notes}
       links={serializedLinks}

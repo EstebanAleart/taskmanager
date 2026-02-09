@@ -22,7 +22,7 @@ interface ProjectItem {
   name: string;
   description: string;
   color: string;
-  department: { name: string; label: string; color: string; bgColor: string };
+  departments: { name: string; label: string; color: string; bgColor: string }[];
   _count: { tasks: number; members: number };
 }
 

@@ -17,9 +17,9 @@ const DEFAULT_PRIORITIES = [
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { workspaceId, name, description, departmentId, color } = body;
+  const { workspaceId, name, description, departmentIds, color } = body;
 
-  if (!workspaceId || !name?.trim() || !departmentId || !color) {
+  if (!workspaceId || !name?.trim() || !departmentIds?.length || !color) {
     return NextResponse.json({ error: "Faltan campos requeridos." }, { status: 400 });
   }
 
@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
     data: {
       name: name.trim(),
       description: description?.trim() || "",
-      departmentId,
       workspaceId,
       color,
+      departments: { connect: (departmentIds as string[]).map((id) => ({ id })) },
       columns: { create: DEFAULT_COLUMNS },
       priorities: { create: DEFAULT_PRIORITIES },
     },

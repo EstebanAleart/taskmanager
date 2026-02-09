@@ -43,11 +43,11 @@ export async function POST() {
   ]);
 
   await Promise.all([
-    prisma.user.create({ data: { name: "Esteban A.", avatar: "", role: "Developer", departmentId: deptMap["desarrollo"], initials: "EA" } }),
-    prisma.user.create({ data: { name: "Ezequiel B.", avatar: "", role: "Data Analyst", departmentId: deptMap["data"], initials: "EB" } }),
-    prisma.user.create({ data: { name: "Mariano B.", avatar: "", role: "Automation Manager", departmentId: deptMap["n8n"], initials: "MBog" } }),
-    prisma.user.create({ data: { name: "Mauricio B.", avatar: "", role: "Marketing Manager", departmentId: deptMap["marketing"], initials: "MBou" } }),
-    prisma.user.create({ data: { name: "Sofia R.", avatar: "", role: "Brand Strategist", departmentId: deptMap["branding"], initials: "SR" } }),
+    prisma.user.create({ data: { name: "Esteban A.", email: "esteban@taskmanager.com", avatar: "", role: "Developer", departmentId: deptMap["desarrollo"], initials: "EA", status: "active" } }),
+    prisma.user.create({ data: { name: "Ezequiel B.", email: "ezequiel@taskmanager.com", avatar: "", role: "Data Analyst", departmentId: deptMap["data"], initials: "EB", status: "active" } }),
+    prisma.user.create({ data: { name: "Mariano B.", email: "mariano@taskmanager.com", avatar: "", role: "Automation Manager", departmentId: deptMap["n8n"], initials: "MBog", status: "active" } }),
+    prisma.user.create({ data: { name: "Mauricio B.", email: "mauricio@taskmanager.com", avatar: "", role: "Marketing Manager", departmentId: deptMap["marketing"], initials: "MBou", status: "active" } }),
+    prisma.user.create({ data: { name: "Sofia R.", email: "sofia@taskmanager.com", avatar: "", role: "Brand Strategist", departmentId: deptMap["branding"], initials: "SR", status: "active" } }),
   ]);
 
   return NextResponse.json({ success: true, message: "Base de datos inicializada correctamente." });

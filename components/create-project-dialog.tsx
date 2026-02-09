@@ -20,7 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const PROJECT_COLORS = [
   { value: "bg-blue-500", label: "Azul" },
@@ -37,6 +39,8 @@ interface Department {
   id: string;
   name: string;
   label: string;
+  color?: string;
+  bgColor?: string;
 }
 
 interface CreateProjectDialogProps {
@@ -54,13 +58,19 @@ export function CreateProjectDialog({
 }: CreateProjectDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [departmentId, setDepartmentId] = useState(departments[0]?.id || "");
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
   const [color, setColor] = useState(PROJECT_COLORS[0].value);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const toggleDepartment = (deptId: string) => {
+    setSelectedDeptIds((prev) =>
+      prev.includes(deptId) ? prev.filter((id) => id !== deptId) : [...prev, deptId]
+    );
+  };
+
   const handleSubmit = async () => {
-    if (!name.trim() || !departmentId) return;
+    if (!name.trim() || selectedDeptIds.length === 0) return;
     setLoading(true);
     try {
       await fetch("/api/projects", {
@@ -70,13 +80,13 @@ export function CreateProjectDialog({
           workspaceId,
           name: name.trim(),
           description: description.trim(),
-          departmentId,
+          departmentIds: selectedDeptIds,
           color,
         }),
       });
       setName("");
       setDescription("");
-      setDepartmentId(departments[0]?.id || "");
+      setSelectedDeptIds([]);
       setColor(PROJECT_COLORS[0].value);
       onOpenChange(false);
       router.refresh();
@@ -123,40 +133,51 @@ export function CreateProjectDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Departamento *</Label>
-              <Select value={departmentId} onValueChange={setDepartmentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex flex-col gap-2">
+            <Label>Departamentos *</Label>
+            <div className="flex flex-wrap gap-2">
+              {departments.map((d) => {
+                const isSelected = selectedDeptIds.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => toggleDepartment(d.id)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      isSelected
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border bg-transparent text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    {d.label}
+                    {isSelected && <X className="h-3 w-3" />}
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>Color</Label>
-              <Select value={color} onValueChange={setColor}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROJECT_COLORS.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      <div className="flex items-center gap-2">
-                        <div className={`h-3 w-3 rounded-sm ${c.value}`} />
-                        {c.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {selectedDeptIds.length === 0 && (
+              <p className="text-xs text-muted-foreground">Selecciona al menos un departamento.</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Color</Label>
+            <Select value={color} onValueChange={setColor}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROJECT_COLORS.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    <div className="flex items-center gap-2">
+                      <div className={`h-3 w-3 rounded-sm ${c.value}`} />
+                      {c.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -166,7 +187,7 @@ export function CreateProjectDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!name.trim() || !departmentId || loading}
+            disabled={!name.trim() || selectedDeptIds.length === 0 || loading}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {loading ? "Creando..." : "Crear Proyecto"}

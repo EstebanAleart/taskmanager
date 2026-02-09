@@ -63,12 +63,18 @@ interface LinkItem {
   url: string;
 }
 
+interface DepartmentBadge {
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
 interface ProjectContentProps {
   projectId: string;
   workspaceId: string;
   projectName: string;
   projectColor: string;
-  department: { label: string; color: string; bgColor: string };
+  departments: DepartmentBadge[];
   taskCount: number;
   notes: string;
   links: LinkItem[];
@@ -90,7 +96,7 @@ export function ProjectContent({
   workspaceId,
   projectName,
   projectColor,
-  department,
+  departments,
   taskCount,
   notes,
   links,
@@ -116,12 +122,15 @@ export function ProjectContent({
             <div className={cn("h-2.5 w-2.5 rounded-sm", projectColor)} />
           </div>
           <h1 className="font-display text-lg font-bold">{projectName}</h1>
-          <Badge
-            variant="secondary"
-            className={cn("text-xs", department.bgColor, department.color)}
-          >
-            {department.label}
-          </Badge>
+          {departments.map((dept) => (
+            <Badge
+              key={dept.label}
+              variant="secondary"
+              className={cn("text-xs", dept.bgColor, dept.color)}
+            >
+              {dept.label}
+            </Badge>
+          ))}
           <span className="text-sm text-muted-foreground">
             {taskCount} tarea{taskCount !== 1 ? "s" : ""}
           </span>

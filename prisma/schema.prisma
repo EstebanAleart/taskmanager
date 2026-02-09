@@ -15,7 +15,7 @@ model Department {
   bgColor   String    @default("")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  projects  Project[]
+  projects  Project[] @relation("DepartmentToProject")
   users     User[]
 
   @@map("departments")
@@ -83,23 +83,22 @@ model WorkspaceMember {
 }
 
 model Project {
-  id           String          @id @default(cuid())
-  name         String
-  description  String
-  notes        String          @default("")
-  departmentId String
-  workspaceId  String
-  color        String
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  files        File[]
-  links        ProjectLink[]
-  members      ProjectMember[]
-  columns      TaskColumn[]
-  priorities   PriorityLevel[]
-  department   Department      @relation(fields: [departmentId], references: [id])
-  workspace    Workspace       @relation(fields: [workspaceId], references: [id])
-  tasks        Task[]
+  id          String          @id @default(cuid())
+  name        String
+  description String
+  notes       String          @default("")
+  workspaceId String
+  color       String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  files       File[]
+  links       ProjectLink[]
+  members     ProjectMember[]
+  columns     TaskColumn[]
+  priorities  PriorityLevel[]
+  departments Department[]    @relation("DepartmentToProject")
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id])
+  tasks       Task[]
 
   @@map("projects")
 }

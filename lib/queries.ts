@@ -19,7 +19,7 @@ export async function getWorkspace(id: string) {
       },
       projects: {
         include: {
-          department: true,
+          departments: true,
           _count: { select: { tasks: true, members: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -32,7 +32,7 @@ export async function getProject(id: string) {
   return prisma.project.findUnique({
     where: { id },
     include: {
-      department: true,
+      departments: true,
       workspace: true,
       links: { orderBy: { createdAt: "desc" } },
       columns: { orderBy: { order: "asc" } },
