@@ -29,6 +29,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { ProjectCreateTaskDialog } from "@/components/project/project-create-task-dialog";
+import { TaskDetailDialog } from "@/components/project/task-detail-dialog";
 import { AddColumnDialog } from "@/components/add-column-dialog";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -103,6 +104,7 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
   const [addColumnOpen, setAddColumnOpen] = useState(false);
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
+  const [detailTask, setDetailTask] = useState<TaskItem | null>(null);
   const router = useRouter();
 
   const handleDragOver = useCallback((e: React.DragEvent, columnId: string) => {
@@ -317,6 +319,17 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
                         >
                           {task.assignee.department.label}
                         </Badge>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailTask(task);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -331,6 +344,11 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
                             <DropdownMenuLabel className="text-xs text-muted-foreground">
                               Acciones
                             </DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setDetailTask(task)}>
+                              <Eye className="mr-2 h-3.5 w-3.5" />
+                              Ver detalle
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger>
                                 <ArrowRight className="mr-2 h-3.5 w-3.5" />
@@ -359,6 +377,7 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        </div>
                       </div>
 
                       {/* Title */}
@@ -470,6 +489,18 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
         onOpenChange={setAddColumnOpen}
         onAddColumn={handleAddColumn}
       />
+
+      {detailTask && (
+        <TaskDetailDialog
+          open={!!detailTask}
+          onOpenChange={(open) => { if (!open) setDetailTask(null); }}
+          task={detailTask}
+          columns={columns}
+          priorities={priorities}
+          users={users}
+          onDelete={handleDeleteTask}
+        />
+      )}
     </>
   );
 }

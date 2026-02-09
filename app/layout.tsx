@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 const _inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const _spaceGrotesk = Space_Grotesk({
@@ -31,6 +32,7 @@ export default function RootLayout({
         className={`${_inter.variable} ${_spaceGrotesk.variable} font-sans antialiased`}
       >
         {children}
+        <Toaster />
       </body>
     </html>
   );
