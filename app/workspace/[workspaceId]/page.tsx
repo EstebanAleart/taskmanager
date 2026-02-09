@@ -26,7 +26,7 @@ export default async function WorkspacePage({
     <WorkspaceContent
       workspace={workspace}
       departments={departments}
-      activeSection={section || "notas"}
+      activeSection={section || "proyectos"}
     />
   );
 }

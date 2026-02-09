@@ -27,7 +27,6 @@ export async function getWorkspace(id: string) {
         },
         orderBy: { createdAt: "desc" },
       },
-      links: { orderBy: { createdAt: "desc" } },
     },
   });
 }
@@ -41,14 +40,6 @@ export async function createWorkspace(data: { name: string; description: string 
   });
   revalidatePath("/dashboard");
   return workspace;
-}
-
-export async function updateWorkspaceNotes(id: string, notes: string) {
-  await prisma.workspace.update({
-    where: { id },
-    data: { notes },
-  });
-  revalidatePath(`/workspace/${id}`);
 }
 
 export async function deleteWorkspace(id: string) {

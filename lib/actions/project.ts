@@ -23,6 +23,7 @@ export async function getProject(id: string) {
     include: {
       department: true,
       workspace: true,
+      links: { orderBy: { createdAt: "desc" } },
       columns: { orderBy: { order: "asc" } },
       priorities: { orderBy: { order: "asc" } },
       tasks: {
@@ -67,6 +68,20 @@ export async function createProject(
 export async function deleteProject(id: string, workspaceId: string) {
   await prisma.project.delete({ where: { id } });
   revalidatePath(`/workspace/${workspaceId}`);
+}
+
+export async function updateProjectNotes(projectId: string, notes: string) {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { workspaceId: true },
+  });
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { notes },
+  });
+  if (project) {
+    revalidatePath(`/workspace/${project.workspaceId}/project/${projectId}`);
+  }
 }
 
 export async function getDepartments() {

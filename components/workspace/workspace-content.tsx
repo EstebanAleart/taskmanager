@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { WorkspaceNotes } from "@/components/workspace/workspace-notes";
-import { WorkspaceLinks } from "@/components/workspace/workspace-links";
 import { WorkspaceMembers } from "@/components/workspace/workspace-members";
 import { WorkspaceProjects } from "@/components/workspace/workspace-projects";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
@@ -17,12 +15,6 @@ interface MemberItem {
     role: string;
     department: { name: string; label: string; color: string; bgColor: string };
   };
-}
-
-interface LinkItem {
-  id: string;
-  title: string;
-  url: string;
 }
 
 interface ProjectItem {
@@ -45,10 +37,8 @@ interface WorkspaceContentProps {
     id: string;
     name: string;
     description: string;
-    notes: string;
     members: MemberItem[];
     projects: ProjectItem[];
-    links: LinkItem[];
   };
   departments: DepartmentItem[];
   activeSection: string;
@@ -64,40 +54,6 @@ export function WorkspaceContent({
   return (
     <>
       <div className="p-4 lg:p-6">
-        {activeSection === "notas" && (
-          <div className="mx-auto max-w-3xl">
-            <div className="mb-6">
-              <h2 className="font-display text-2xl font-bold text-foreground">
-                Notas
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Bloc de notas del workspace
-              </p>
-            </div>
-            <WorkspaceNotes
-              workspaceId={workspace.id}
-              initialNotes={workspace.notes}
-            />
-          </div>
-        )}
-
-        {activeSection === "links" && (
-          <div className="mx-auto max-w-3xl">
-            <div className="mb-6">
-              <h2 className="font-display text-2xl font-bold text-foreground">
-                Links
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Links utiles del workspace
-              </p>
-            </div>
-            <WorkspaceLinks
-              workspaceId={workspace.id}
-              links={workspace.links}
-            />
-          </div>
-        )}
-
         {activeSection === "miembros" && (
           <div className="mx-auto max-w-3xl">
             <div className="mb-6">
@@ -115,7 +71,7 @@ export function WorkspaceContent({
           </div>
         )}
 
-        {activeSection === "proyectos" && (
+        {(activeSection === "proyectos" || activeSection === "notas" || activeSection === "links") && (
           <div className="mx-auto max-w-4xl">
             <WorkspaceProjects
               workspaceId={workspace.id}

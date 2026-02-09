@@ -4,8 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  StickyNote,
-  LinkIcon,
   Users,
   FolderKanban,
   ChevronDown,
@@ -45,8 +43,6 @@ interface WorkspaceSidebarProps {
 }
 
 const NAV_ITEMS = [
-  { id: "notas", label: "Notas", icon: StickyNote },
-  { id: "links", label: "Links", icon: LinkIcon },
   { id: "miembros", label: "Miembros", icon: Users },
   { id: "proyectos", label: "Proyectos", icon: FolderKanban },
 ];
@@ -66,14 +62,6 @@ export function WorkspaceSidebar({
   const activeProjectId = projectMatch ? projectMatch[1] : null;
   const isOnWorkspacePage = !activeProjectId;
 
-  // Active section from URL search params or default
-  const getActiveSectionFromHash = () => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("section") || "notas";
-    }
-    return "notas";
-  };
 
   return (
     <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
