@@ -9,7 +9,7 @@ export default async function DashboardPage() {
   if (!session) redirect("/login");
   if (session.user?.status !== "active") redirect("/no-access");
   
-  const workspaces = await getWorkspaces();
+  const workspaces = await getWorkspaces(session.user.id);
   const deptCount = await getDepartmentCount();
   const needsSeed = deptCount === 0;
 
