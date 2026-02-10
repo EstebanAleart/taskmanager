@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FolderKanban, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FolderKanban, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface DepartmentBadge {
@@ -37,6 +39,37 @@ interface WorkspaceProjectsProps {
 
 export function WorkspaceProjects({ workspaceId, projects, departments }: WorkspaceProjectsProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleDeleteProject = (id: string, name: string) => {
+    toast.warning(`Eliminar "${name}"?`, {
+      description: "Se eliminaran todas las tareas, columnas, links y datos asociados. Esta accion es permanente.",
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          setDeletingId(id);
+          try {
+            const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+            if (res.ok) {
+              toast.success("Proyecto eliminado");
+              router.refresh();
+            } else {
+              toast.error("Error al eliminar el proyecto");
+            }
+          } catch {
+            toast.error("Error al eliminar el proyecto");
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+      cancel: {
+        label: "Cancelar",
+        onClick: () => {},
+      },
+    });
+  };
 
   return (
     <div>
@@ -55,7 +88,7 @@ export function WorkspaceProjects({ workspaceId, projects, departments }: Worksp
           <Link
             key={project.id}
             href={`/workspace/${workspaceId}/project/${project.id}`}
-            className="group rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
+            className="group relative rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
           >
             <div className="mb-3 flex items-start gap-3">
               <div
@@ -66,7 +99,7 @@ export function WorkspaceProjects({ workspaceId, projects, departments }: Worksp
               >
                 <div className={cn("h-3 w-3 rounded-sm", project.color)} />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold text-card-foreground">{project.name}</h3>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {project.departments.map((dept) => (
@@ -80,6 +113,18 @@ export function WorkspaceProjects({ workspaceId, projects, departments }: Worksp
                   ))}
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleDeleteProject(project.id, project.name);
+                }}
+                disabled={deletingId === project.id}
+                className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
             <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
               {project.description}

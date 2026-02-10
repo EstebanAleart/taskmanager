@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Users, FolderKanban, LayoutDashboard } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Users, FolderKanban, LayoutDashboard, Trash2 } from "lucide-react";
 import { CreateWorkspaceDialog } from "@/components/create-workspace-dialog";
 import { SeedButton } from "@/components/seed-button";
+import { toast } from "sonner";
 
 interface WorkspaceItem {
   id: string;
@@ -21,6 +23,37 @@ interface DashboardClientProps {
 
 export function DashboardClient({ workspaces, needsSeed }: DashboardClientProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleDeleteWorkspace = async (id: string, name: string) => {
+    toast.warning(`Eliminar "${name}"?`, {
+      description: "Se eliminaran todos los proyectos, tareas y datos asociados. Esta accion es permanente.",
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          setDeletingId(id);
+          try {
+            const res = await fetch(`/api/workspaces/${id}`, { method: "DELETE" });
+            if (res.ok) {
+              toast.success("Espacio de trabajo eliminado");
+              router.refresh();
+            } else {
+              toast.error("Error al eliminar el espacio de trabajo");
+            }
+          } catch {
+            toast.error("Error al eliminar el espacio de trabajo");
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+      cancel: {
+        label: "Cancelar",
+        onClick: () => {},
+      },
+    });
+  };
 
   return (
     <>
@@ -58,7 +91,7 @@ export function DashboardClient({ workspaces, needsSeed }: DashboardClientProps)
             <Link
               key={ws.id}
               href={`/workspace/${ws.id}`}
-              className="group rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
+              className="group relative rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
             >
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -76,6 +109,18 @@ export function DashboardClient({ workspaces, needsSeed }: DashboardClientProps)
                     )}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleDeleteWorkspace(ws.id, ws.name);
+                  }}
+                  disabled={deletingId === ws.id}
+                  className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-muted-foreground">

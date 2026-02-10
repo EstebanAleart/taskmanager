@@ -7,7 +7,14 @@ export async function DELETE(
 ) {
   const { projectId } = await params;
 
-  await prisma.project.delete({ where: { id: projectId } });
+  await prisma.$transaction([
+    prisma.task.deleteMany({ where: { projectId } }),
+    prisma.taskColumn.deleteMany({ where: { projectId } }),
+    prisma.priorityLevel.deleteMany({ where: { projectId } }),
+    prisma.projectLink.deleteMany({ where: { projectId } }),
+    prisma.projectMember.deleteMany({ where: { projectId } }),
+    prisma.project.delete({ where: { id: projectId } }),
+  ]);
 
   return NextResponse.json({ success: true });
 }
