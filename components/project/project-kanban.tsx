@@ -32,6 +32,7 @@ import { ProjectCreateTaskDialog } from "@/components/project/project-create-tas
 import { TaskDetailDialog } from "@/components/project/task-detail-dialog";
 import { AddColumnDialog } from "@/components/add-column-dialog";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface TaskTag {
@@ -148,7 +149,12 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
-      await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+      const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Tarea eliminada");
+      } else {
+        toast.error("Error al eliminar la tarea");
+      }
       router.refresh();
     },
     [router]

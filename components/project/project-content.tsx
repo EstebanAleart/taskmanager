@@ -1,12 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutDashboard, StickyNote, LinkIcon, Plus } from "lucide-react";
+import { LayoutDashboard, StickyNote, LinkIcon, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ProjectKanban } from "@/components/project/project-kanban";
 import { ProjectNotes } from "@/components/project/project-notes";
 import { ProjectLinks } from "@/components/project/project-links";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface TaskTag {
@@ -107,6 +121,26 @@ export function ProjectContent({
   hasUsers,
 }: ProjectContentProps) {
   const [activeTab, setActiveTab] = useState("tablero");
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+
+  const handleDeleteProject = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Proyecto eliminado");
+        router.push(`/workspace/${workspaceId}?section=proyectos`);
+        router.refresh();
+      } else {
+        toast.error("Error al eliminar el proyecto");
+      }
+    } catch {
+      toast.error("Error al eliminar el proyecto");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="h-full text-foreground">
@@ -134,6 +168,33 @@ export function ProjectContent({
           <span className="text-sm text-muted-foreground">
             {taskCount} tarea{taskCount !== 1 ? "s" : ""}
           </span>
+          <div className="ml-auto">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Eliminar proyecto</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Se eliminaran todas las tareas, columnas, links y datos asociados a &quot;{projectName}&quot;. Esta accion es permanente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="bg-transparent">Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteProject}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? "Eliminando..." : "Eliminar"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
 
         {/* Tabs */}
