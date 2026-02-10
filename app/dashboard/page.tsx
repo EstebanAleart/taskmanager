@@ -1,9 +1,12 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LayoutDashboard } from "lucide-react";
 import { getWorkspaces, getDepartmentCount } from "@/lib/queries";
 import { DashboardClient } from "@/components/dashboard-client";
+import { auth, signOut } from "@/lib/auth";
 
 export default async function DashboardPage() {
+  const session = await auth();
+  if (!session) redirect("/login");
   const workspaces = await getWorkspaces();
   const deptCount = await getDepartmentCount();
   const needsSeed = deptCount === 0;
@@ -18,12 +21,26 @@ export default async function DashboardPage() {
             </div>
             <span className="font-display text-lg font-bold">TaskManager</span>
           </div>
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Inicio
-          </Link>
+          <div className="flex items-center gap-4">
+            {session?.user && (
+              <span className="text-sm text-muted-foreground">
+                {session.user.name || session.user.email}
+              </span>
+            )}
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/" });
+              }}
+            >
+              <button
+                type="submit"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Cerrar sesion
+              </button>
+            </form>
+          </div>
         </div>
       </nav>
 
