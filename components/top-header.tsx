@@ -67,6 +67,8 @@ export function TopHeader({
   const allTags = getAllTags(tasks);
 
   const hasActiveFilters =
+import MiPerfil from "@/components/MiPerfil";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
     filters.priorities.length > 0 ||
     filters.assignees.length > 0 ||
     filters.tags.length > 0;
@@ -100,6 +102,12 @@ export function TopHeader({
     const next = filters.tags.includes(tag)
       ? filters.tags.filter((x) => x !== tag)
       : [...filters.tags, tag];
+  const [perfilOpen, setPerfilOpen] = useState(false);
+  const user = {
+    name: "Esteban Aleart",
+    initials: "EA",
+    avatar: "",
+  };
     onFiltersChange({ ...filters, tags: next });
   };
 
@@ -152,6 +160,19 @@ export function TopHeader({
                   "rounded-md px-2.5 py-1.5 transition-colors",
                   isActive
                     ? "bg-card text-card-foreground shadow-sm"
+            {/* Avatar y nombre de usuario para abrir MiPerfil */}
+            <button
+              className="flex items-center gap-2 ml-4 bg-transparent border-none cursor-pointer"
+              onClick={() => setPerfilOpen(true)}
+              title="Ver perfil"
+            >
+              <Avatar>
+                <AvatarImage src={user.avatar} />
+                <AvatarFallback>{user.initials}</AvatarFallback>
+              </Avatar>
+              <span className="font-medium text-sm text-foreground">{user.name}</span>
+            </button>
+            <MiPerfil open={perfilOpen} onClose={() => setPerfilOpen(false)} />
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >

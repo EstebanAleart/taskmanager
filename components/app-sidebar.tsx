@@ -13,10 +13,11 @@ import {
   Bell,
   Zap,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSession } from "next-auth/react";
+import MiPerfil from "@/components/MiPerfil";
 import {
   PROJECTS,
   TEAM_MEMBERS,
@@ -46,11 +47,48 @@ export function AppSidebar({
   onDepartmentChange,
 }: AppSidebarProps) {
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const [perfilOpen, setPerfilOpen] = useState(false);
+
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  // Fallback a datos mock si no hay sesión
+  const displayUser = user || TEAM_MEMBERS[0];
+  const userInitials = user?.initials || TEAM_MEMBERS[0].initials;
+  const userName = user?.name || TEAM_MEMBERS[0].name;
+  const userRole = user?.role || TEAM_MEMBERS[0].role;
+  const userEmail = user?.email;
+  const userImage = user?.image;
 
   return (
     <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5">
+      {/* ============= TU PERFIL ARRIBA ============= */}
+      <div className="border-b border-sidebar-border p-4">
+        <button
+          onClick={() => setPerfilOpen(true)}
+          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-sidebar-accent"
+          title="Ver mi perfil"
+        >
+          <Avatar className="h-10 w-10 flex-shrink-0">
+            {userImage && <AvatarImage src={userImage} />}
+            <AvatarFallback className="bg-sidebar-primary text-sm text-sidebar-primary-foreground">
+              {userInitials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 truncate text-left">
+            <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
+              {userName}
+            </p>
+            <p className="truncate text-xs text-sidebar-foreground">
+              {userEmail || userRole}
+            </p>
+          </div>
+          <Settings className="h-4 w-4 text-sidebar-foreground/60 flex-shrink-0" />
+        </button>
+      </div>
+
+      {/* Logo/Brand */}
+      <div className="flex items-center gap-3 px-5 py-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
           <Zap className="h-5 w-5 text-sidebar-primary-foreground" />
         </div>
@@ -58,7 +96,7 @@ export function AppSidebar({
           <h1 className="font-display text-base font-bold text-sidebar-accent-foreground">
             Tablero
           </h1>
-          <p className="text-xs text-sidebar-foreground">Gestion de proyectos</p>
+          <p className="text-xs text-sidebar-foreground">Gestión de proyectos</p>
         </div>
       </div>
 
@@ -162,9 +200,7 @@ export function AppSidebar({
                   onClick={() => onViewChange("tablero")}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
-                  <span
-                    className={cn("h-2 w-2 rounded-full", project.color)}
-                  />
+                  <span className={cn("h-2 w-2 rounded-full", project.color)} />
                   <span className="truncate">{project.name}</span>
                   <span className="ml-auto text-xs text-sidebar-foreground/50">
                     {project.tasksDone}/{project.tasksTotal}
@@ -184,31 +220,21 @@ export function AppSidebar({
         </div>
       </nav>
 
-      {/* Bottom User */}
+      {/* Bottom - Notificaciones */}
       <div className="border-t border-sidebar-border p-3">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-sidebar-primary text-xs text-sidebar-primary-foreground">
-              {TEAM_MEMBERS[0].initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 truncate">
-            <p className="truncate text-sm font-medium text-sidebar-accent-foreground">
-              {TEAM_MEMBERS[0].name}
-            </p>
-            <p className="truncate text-xs text-sidebar-foreground">
-              {TEAM_MEMBERS[0].role}
-            </p>
-          </div>
-          <button className="relative text-sidebar-foreground hover:text-sidebar-accent-foreground">
-            <Bell className="h-4 w-4" />
-            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
-          </button>
-          <button className="text-sidebar-foreground hover:text-sidebar-accent-foreground">
-            <Settings className="h-4 w-4" />
+        <div className="flex items-center justify-center gap-4">
+          <button 
+            className="relative text-sidebar-foreground hover:text-sidebar-accent-foreground"
+            title="Notificaciones"
+          >
+            <Bell className="h-5 w-5" />
+            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-sidebar" />
           </button>
         </div>
       </div>
+
+      {/* Modal de Perfil */}
+      <MiPerfil open={perfilOpen} onClose={() => setPerfilOpen(false)} />
     </aside>
   );
 }
