@@ -1,4 +1,5 @@
 import React from "react"
+import { SessionProvider } from "@/components/session-provider";
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 
@@ -31,8 +32,10 @@ export default function RootLayout({
       <body
         className={`${_inter.variable} ${_spaceGrotesk.variable} font-sans antialiased`}
       >
-        {children}
-        <Toaster />
+        <SessionProvider>
+          {children}
+          <Toaster />
+        </SessionProvider>
       </body>
     </html>
   );
