@@ -5,17 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FolderKanban, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -53,21 +42,33 @@ export function WorkspaceProjects({ workspaceId, projects, departments }: Worksp
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleDeleteProject = async (id: string) => {
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        toast.success("Proyecto eliminado");
-        router.refresh();
-      } else {
-        toast.error("Error al eliminar el proyecto");
-      }
-    } catch {
-      toast.error("Error al eliminar el proyecto");
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDeleteProject = (id: string, name: string) => {
+    toast.warning(`Eliminar "${name}"?`, {
+      description: "Se eliminaran todas las tareas, columnas, links y datos asociados. Esta accion es permanente.",
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          setDeletingId(id);
+          try {
+            const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+            if (res.ok) {
+              toast.success("Proyecto eliminado");
+              router.refresh();
+            } else {
+              toast.error("Error al eliminar el proyecto");
+            }
+          } catch {
+            toast.error("Error al eliminar el proyecto");
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+      cancel: {
+        label: "Cancelar",
+        onClick: () => {},
+      },
+    });
   };
 
   return (
@@ -112,35 +113,18 @@ export function WorkspaceProjects({ workspaceId, projects, departments }: Worksp
                   ))}
                 </div>
               </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                    className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Eliminar proyecto</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Se eliminaran todas las tareas, columnas, links y datos asociados a &quot;{project.name}&quot;. Esta accion es permanente.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-transparent">Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleDeleteProject(project.id)}
-                      disabled={deletingId === project.id}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {deletingId === project.id ? "Eliminando..." : "Eliminar"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleDeleteProject(project.id, project.name);
+                }}
+                disabled={deletingId === project.id}
+                className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
             <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
               {project.description}

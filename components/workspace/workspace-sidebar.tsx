@@ -17,17 +17,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -82,23 +71,30 @@ export function WorkspaceSidebar({
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [membersOpen, setMembersOpen] = useState(true);
   const [sectorsOpen, setSectorsOpen] = useState(true);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDeleteWorkspace = async () => {
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/workspaces/${workspaceId}`, { method: "DELETE" });
-      if (res.ok) {
-        toast.success("Espacio de trabajo eliminado");
-        router.push("/dashboard");
-      } else {
-        toast.error("Error al eliminar el espacio de trabajo");
-      }
-    } catch {
-      toast.error("Error al eliminar el espacio de trabajo");
-    } finally {
-      setDeleting(false);
-    }
+  const handleDeleteWorkspace = () => {
+    toast.warning(`Eliminar "${workspaceName}"?`, {
+      description: "Se eliminaran todos los proyectos, tareas y datos asociados. Esta accion es permanente.",
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          try {
+            const res = await fetch(`/api/workspaces/${workspaceId}`, { method: "DELETE" });
+            if (res.ok) {
+              toast.success("Espacio de trabajo eliminado");
+              router.push("/dashboard");
+            } else {
+              toast.error("Error al eliminar el espacio de trabajo");
+            }
+          } catch {
+            toast.error("Error al eliminar el espacio de trabajo");
+          }
+        },
+      },
+      cancel: {
+        label: "Cancelar",
+        onClick: () => {},
+      },
+    });
   };
 
   const projectMatch = pathname.match(/\/project\/([^/]+)/);
@@ -299,32 +295,13 @@ export function WorkspaceSidebar({
           <ArrowLeft className="h-4 w-4" />
           Volver al Dashboard
         </Link>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10">
-              <Trash2 className="h-4 w-4" />
-              Eliminar workspace
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Eliminar espacio de trabajo</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta accion es permanente. Se eliminaran todos los proyectos, tareas, miembros y datos asociados a este workspace.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="bg-transparent">Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteWorkspace}
-                disabled={deleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {deleting ? "Eliminando..." : "Eliminar"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <button
+          onClick={handleDeleteWorkspace}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4" />
+          Eliminar workspace
+        </button>
       </div>
     </aside>
   );
