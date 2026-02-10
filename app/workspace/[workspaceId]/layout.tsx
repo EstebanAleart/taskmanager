@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getWorkspace, getDepartments } from "@/lib/queries";
 import { WorkspaceLayoutClient } from "@/components/workspace/workspace-layout-client";
+import { auth } from "@/lib/auth";
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,10 @@ export default async function WorkspaceLayout({
   children,
   params,
 }: WorkspaceLayoutProps) {
+  const session = await auth();
+  if (!session) redirect("/login");
+  if (session.user?.status !== "active") redirect("/no-access");
+
   const { workspaceId } = await params;
   const workspace = await getWorkspace(workspaceId);
 

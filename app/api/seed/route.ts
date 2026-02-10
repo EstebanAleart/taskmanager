@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
-  const existingDepts = await prisma.department.count();
-  if (existingDepts > 0) {
-    return NextResponse.json(
-      { success: false, message: "La base de datos ya tiene datos." },
-      { status: 409 }
-    );
-  }
+  // const existingDepts = await prisma.department.count();
+  // if (existingDepts > 0) {
+  //   return NextResponse.json(
+  //     { success: false, message: "La base de datos ya tiene datos." },
+  //     { status: 409 }
+  //   );
+  // }
 
   const departments = await Promise.all([
     prisma.department.create({
@@ -42,13 +42,13 @@ export async function POST() {
     prisma.fileType.create({ data: { name: "other", label: "Otro", color: "text-muted-foreground", bgColor: "bg-muted", extension: "FILE" } }),
   ]);
 
-  await Promise.all([
-    prisma.user.create({ data: { name: "Esteban A.", email: "esteban@taskmanager.com", avatar: "", role: "Developer", departmentId: deptMap["desarrollo"], initials: "EA", status: "active" } }),
-    prisma.user.create({ data: { name: "Ezequiel B.", email: "ezequiel@taskmanager.com", avatar: "", role: "Data Analyst", departmentId: deptMap["data"], initials: "EB", status: "active" } }),
-    prisma.user.create({ data: { name: "Mariano B.", email: "mariano@taskmanager.com", avatar: "", role: "Automation Manager", departmentId: deptMap["n8n"], initials: "MBog", status: "active" } }),
-    prisma.user.create({ data: { name: "Mauricio B.", email: "mauricio@taskmanager.com", avatar: "", role: "Marketing Manager", departmentId: deptMap["marketing"], initials: "MBou", status: "active" } }),
-    prisma.user.create({ data: { name: "Sofia R.", email: "sofia@taskmanager.com", avatar: "", role: "Brand Strategist", departmentId: deptMap["branding"], initials: "SR", status: "active" } }),
-  ]);
+  // await Promise.all([
+  //   prisma.user.create({ data: { name: "Esteban A.", email: "esteban@taskmanager.com", avatar: "", role: "Developer", departmentId: deptMap["desarrollo"], initials: "EA", status: "active" } }),
+  //   prisma.user.create({ data: { name: "Ezequiel B.", email: "ezequiel@taskmanager.com", avatar: "", role: "Data Analyst", departmentId: deptMap["data"], initials: "EB", status: "active" } }),
+  //   prisma.user.create({ data: { name: "Mariano B.", email: "mariano@taskmanager.com", avatar: "", role: "Automation Manager", departmentId: deptMap["n8n"], initials: "MBog", status: "active" } }),
+  //   prisma.user.create({ data: { name: "Mauricio B.", email: "mauricio@taskmanager.com", avatar: "", role: "Marketing Manager", departmentId: deptMap["marketing"], initials: "MBou", status: "active" } }),
+  //   prisma.user.create({ data: { name: "Sofia R.", email: "sofia@taskmanager.com", avatar: "", role: "Brand Strategist", departmentId: deptMap["branding"], initials: "SR", status: "active" } }),
+  // ]);
 
   return NextResponse.json({ success: true, message: "Base de datos inicializada correctamente." });
 }

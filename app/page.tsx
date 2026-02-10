@@ -6,8 +6,10 @@ import {
   FolderKanban,
   ArrowRight,
 } from "lucide-react";
+import { auth } from "@/lib/auth";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth();
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Nav */}
@@ -19,12 +21,21 @@ export default function LandingPage() {
             </div>
             <span className="font-display text-lg font-bold">TaskManager</span>
           </div>
-          <Link
-            href="/dashboard"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-          >
-            Ir al Dashboard
-          </Link>
+          {session ? (
+            <Link
+              href="/dashboard"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              Ir al Dashboard
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              Iniciar sesion
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -41,7 +52,7 @@ export default function LandingPage() {
         </p>
         <div className="mt-10 flex items-center justify-center gap-4">
           <Link
-            href="/dashboard"
+            href={session ? "/dashboard" : "/login"}
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
           >
             Comenzar ahora
