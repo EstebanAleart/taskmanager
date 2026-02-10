@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
-  const existingDepts = await prisma.department.count();
-  if (existingDepts > 0) {
-    return NextResponse.json(
-      { success: false, message: "La base de datos ya tiene datos." },
-      { status: 409 }
-    );
-  }
+  // const existingDepts = await prisma.department.count();
+  // if (existingDepts > 0) {
+  //   return NextResponse.json(
+  //     { success: false, message: "La base de datos ya tiene datos." },
+  //     { status: 409 }
+  //   );
+  // }
 
   const departments = await Promise.all([
     prisma.department.create({
