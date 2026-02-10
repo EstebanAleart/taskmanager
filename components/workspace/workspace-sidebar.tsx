@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Users,
   FolderKanban,
@@ -13,12 +14,14 @@ import {
   ArrowLeft,
   Trash2,
   Zap,
+  Settings,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import MiPerfil from "@/components/MiPerfil";
 
 interface MemberItem {
   userId: string;
@@ -68,9 +71,15 @@ export function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
+  
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [membersOpen, setMembersOpen] = useState(true);
   const [sectorsOpen, setSectorsOpen] = useState(true);
+  const [perfilOpen, setPerfilOpen] = useState(false);
+
+  const user = session?.user;
+
   const handleDeleteWorkspace = () => {
     toast.warning(`Eliminar "${workspaceName}"?`, {
       description: "Se eliminaran todos los proyectos, tareas y datos asociados. Esta accion es permanente.",
@@ -102,7 +111,34 @@ export function WorkspaceSidebar({
 
   return (
     <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
-      {/* Header */}
+      {/* ============= TU PERFIL ARRIBA ============= */}
+      {user && (
+        <div className="border-b border-sidebar-border p-4">
+          <button
+            onClick={() => setPerfilOpen(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-sidebar-accent"
+            title="Ver mi perfil"
+          >
+            <Avatar className="h-10 w-10 flex-shrink-0">
+              {user.image && <AvatarImage src={user.image} />}
+              <AvatarFallback className="bg-sidebar-primary text-sm text-sidebar-primary-foreground">
+                {user.initials || user.name?.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 truncate text-left">
+              <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
+                {user.name}
+              </p>
+              <p className="truncate text-xs text-sidebar-foreground">
+                {user.email}
+              </p>
+            </div>
+            <Settings className="h-4 w-4 text-sidebar-foreground/60 flex-shrink-0" />
+          </button>
+        </div>
+      )}
+
+      {/* Header - Workspace */}
       <div className="flex items-center gap-3 px-5 py-5">
         <Link
           href="/dashboard"
@@ -303,6 +339,9 @@ export function WorkspaceSidebar({
           Eliminar workspace
         </button>
       </div>
+
+      {/* Modal de Perfil */}
+      <MiPerfil open={perfilOpen} onClose={() => setPerfilOpen(false)} />
     </aside>
   );
 }

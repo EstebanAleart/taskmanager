@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 const DEFAULT_COLUMNS = [
   { name: "pendiente", label: "Pendiente", color: "text-muted-foreground", icon: "circle", order: 0 },
@@ -16,11 +17,23 @@ const DEFAULT_PRIORITIES = [
 ];
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const body = await request.json();
   const { workspaceId, name, description, departmentIds, color } = body;
 
   if (!workspaceId || !name?.trim() || !departmentIds?.length || !color) {
     return NextResponse.json({ error: "Faltan campos requeridos." }, { status: 400 });
+  }
+
+  const membership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
+  });
+  if (!membership) {
+    return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
   }
 
   const project = await prisma.project.create({

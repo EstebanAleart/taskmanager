@@ -23,6 +23,13 @@ export default async function WorkspaceLayout({
     notFound();
   }
 
+  const isMember = workspace.members.some(
+    (m: { userId: string }) => m.userId === session.user.id
+  );
+  if (!isMember) {
+    redirect("/dashboard");
+  }
+
   const departments = await getDepartments();
 
   const sidebarDepartments = departments.map((d) => ({
