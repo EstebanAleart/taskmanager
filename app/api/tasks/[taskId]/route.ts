@@ -1,11 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+
+async function verifyTaskAccess(taskId: string, userId: string) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { project: { select: { workspaceId: true } } },
+  });
+  if (!task) return null;
+
+  const membership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: task.project.workspaceId, userId } },
+  });
+  return membership ? task : null;
+}
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const { taskId } = await params;
+
+  const access = await verifyTaskAccess(taskId, session.user.id);
+  if (!access) {
+    return NextResponse.json({ error: "No tienes acceso a esta tarea" }, { status: 403 });
+  }
+
   const body = await request.json();
   const { title, description, columnId, priorityId, assigneeId, dueDate, tags } = body;
 
@@ -50,7 +75,17 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const { taskId } = await params;
+
+  const access = await verifyTaskAccess(taskId, session.user.id);
+  if (!access) {
+    return NextResponse.json({ error: "No tienes acceso a esta tarea" }, { status: 403 });
+  }
 
   await prisma.task.delete({ where: { id: taskId } });
 
