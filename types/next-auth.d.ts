@@ -10,6 +10,7 @@ declare module "next-auth" {
       role: string;
       initials: string;
       departmentId: string;
+      status: string;
     };
   }
 }

@@ -7,6 +7,7 @@ import { auth, signOut } from "@/lib/auth";
 export default async function DashboardPage() {
   const session = await auth();
   if (!session) redirect("/login");
+  if (session.user?.status !== "active") redirect("/no-access");
   const workspaces = await getWorkspaces();
   const deptCount = await getDepartmentCount();
   const needsSeed = deptCount === 0;

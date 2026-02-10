@@ -14,6 +14,7 @@ export default async function WorkspaceLayout({
 }: WorkspaceLayoutProps) {
   const session = await auth();
   if (!session) redirect("/login");
+  if (session.user?.status !== "active") redirect("/no-access");
 
   const { workspaceId } = await params;
   const workspace = await getWorkspace(workspaceId);
