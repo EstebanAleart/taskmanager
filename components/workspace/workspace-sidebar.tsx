@@ -15,6 +15,7 @@ import {
   Trash2,
   Zap,
   Settings,
+  HelpCircle,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import MiPerfil from "@/components/MiPerfil";
+import GuiaUsuario from "@/components/GuiaUsuario";
 
 interface MemberItem {
   userId: string;
@@ -77,6 +79,7 @@ export function WorkspaceSidebar({
   const [membersOpen, setMembersOpen] = useState(true);
   const [sectorsOpen, setSectorsOpen] = useState(true);
   const [perfilOpen, setPerfilOpen] = useState(false);
+  const [guiaOpen, setGuiaOpen] = useState(false);
 
   const user = session?.user;
 
@@ -324,6 +327,13 @@ export function WorkspaceSidebar({
 
       {/* Bottom */}
       <div className="border-t border-sidebar-border p-3 space-y-1">
+        <button
+          onClick={() => setGuiaOpen(true)}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <HelpCircle className="h-4 w-4" />
+          Guia de usuario
+        </button>
         <Link
           href="/dashboard"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -340,8 +350,9 @@ export function WorkspaceSidebar({
         </button>
       </div>
 
-      {/* Modal de Perfil */}
+      {/* Modals */}
       <MiPerfil open={perfilOpen} onClose={() => setPerfilOpen(false)} />
+      <GuiaUsuario open={guiaOpen} onClose={() => setGuiaOpen(false)} />
     </aside>
   );
 }
