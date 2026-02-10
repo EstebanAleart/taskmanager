@@ -2,9 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Users, FolderKanban, LayoutDashboard } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Users, FolderKanban, LayoutDashboard, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { CreateWorkspaceDialog } from "@/components/create-workspace-dialog";
 import { SeedButton } from "@/components/seed-button";
+import { toast } from "sonner";
 
 interface WorkspaceItem {
   id: string;
@@ -21,6 +34,25 @@ interface DashboardClientProps {
 
 export function DashboardClient({ workspaces, needsSeed }: DashboardClientProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleDeleteWorkspace = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/workspaces/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Espacio de trabajo eliminado");
+        router.refresh();
+      } else {
+        toast.error("Error al eliminar el espacio de trabajo");
+      }
+    } catch {
+      toast.error("Error al eliminar el espacio de trabajo");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <>
@@ -58,7 +90,7 @@ export function DashboardClient({ workspaces, needsSeed }: DashboardClientProps)
             <Link
               key={ws.id}
               href={`/workspace/${ws.id}`}
-              className="group rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
+              className="group relative rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
             >
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -76,6 +108,35 @@ export function DashboardClient({ workspaces, needsSeed }: DashboardClientProps)
                     )}
                   </div>
                 </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Eliminar espacio de trabajo</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminaran todos los proyectos, tareas, miembros y datos asociados a &quot;{ws.name}&quot;. Esta accion es permanente.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-transparent">Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDeleteWorkspace(ws.id)}
+                        disabled={deletingId === ws.id}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {deletingId === ws.id ? "Eliminando..." : "Eliminar"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
