@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Plus,
   Circle,
@@ -99,6 +99,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 export function ProjectKanban({ tasks, columns, priorities, users, projectId }: ProjectKanbanProps) {
+  const [localTasks, setLocalTasks] = useState<TaskItem[]>(tasks);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDefaultColumnId, setCreateDefaultColumnId] = useState<string | undefined>();
@@ -107,6 +108,11 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
   const [editLabel, setEditLabel] = useState("");
   const [detailTask, setDetailTask] = useState<TaskItem | null>(null);
   const router = useRouter();
+
+  // Sync local state when server props change
+  useEffect(() => {
+    setLocalTasks(tasks);
+  }, [tasks]);
 
   const handleDragOver = useCallback((e: React.DragEvent, columnId: string) => {
     e.preventDefault();
@@ -118,46 +124,80 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
     setDragOverColumn(null);
   }, []);
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent, columnId: string) => {
-      e.preventDefault();
-      const taskId = e.dataTransfer.getData("taskId");
-      if (taskId) {
-        await fetch(`/api/tasks/${taskId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ columnId }),
-        });
-        router.refresh();
-      }
-      setDragOverColumn(null);
-    },
-    [router]
-  );
+  const moveTaskOptimistic = useCallback(
+    (taskId: string, targetColumnId: string) => {
+      // Find the task's current column to support rollback
+      const prevTasks = localTasks;
+      const task = prevTasks.find((t) => t.id === taskId);
+      if (!task || task.columnId === targetColumnId) return;
 
-  const handleMoveTask = useCallback(
-    async (taskId: string, targetColumnId: string) => {
-      await fetch(`/api/tasks/${taskId}`, {
+      // Optimistic: move instantly in UI
+      setLocalTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, columnId: targetColumnId } : t))
+      );
+
+      // API call in background
+      fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ columnId: targetColumnId }),
+      }).then((res) => {
+        if (!res.ok) {
+          // Rollback on failure
+          setLocalTasks(prevTasks);
+          toast.error("Error al mover la tarea");
+        } else {
+          router.refresh();
+        }
+      }).catch(() => {
+        setLocalTasks(prevTasks);
+        toast.error("Error de conexion");
       });
-      router.refresh();
     },
-    [router]
+    [localTasks, router]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, columnId: string) => {
+      e.preventDefault();
+      const taskId = e.dataTransfer.getData("taskId");
+      if (taskId) {
+        moveTaskOptimistic(taskId, columnId);
+      }
+      setDragOverColumn(null);
+    },
+    [moveTaskOptimistic]
+  );
+
+  const handleMoveTask = useCallback(
+    (taskId: string, targetColumnId: string) => {
+      moveTaskOptimistic(taskId, targetColumnId);
+    },
+    [moveTaskOptimistic]
   );
 
   const handleDeleteTask = useCallback(
-    async (taskId: string) => {
-      const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
-      if (res.ok) {
-        toast.success("Tarea eliminada");
-      } else {
-        toast.error("Error al eliminar la tarea");
-      }
-      router.refresh();
+    (taskId: string) => {
+      const prevTasks = localTasks;
+
+      // Optimistic: remove from UI instantly
+      setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
+      setDetailTask(null);
+
+      fetch(`/api/tasks/${taskId}`, { method: "DELETE" }).then((res) => {
+        if (res.ok) {
+          toast.success("Tarea eliminada");
+          router.refresh();
+        } else {
+          setLocalTasks(prevTasks);
+          toast.error("Error al eliminar la tarea");
+        }
+      }).catch(() => {
+        setLocalTasks(prevTasks);
+        toast.error("Error de conexion");
+      });
     },
-    [router]
+    [localTasks, router]
   );
 
   const handleAddTask = (columnId: string) => {
@@ -211,7 +251,7 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
     <>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {columns.map((column) => {
-          const columnTasks = tasks.filter((t) => t.columnId === column.id);
+          const columnTasks = localTasks.filter((t) => t.columnId === column.id);
           const Icon = ICON_MAP[column.icon] || Circle;
           const isDefaultColumn = defaultColumnNames.includes(column.name);
 

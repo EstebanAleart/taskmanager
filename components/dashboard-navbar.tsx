@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, HelpCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import MiPerfil from "@/components/MiPerfil";
+import GuiaUsuario from "@/components/GuiaUsuario";
 
 interface DashboardNavbarProps {
   session: any;
@@ -12,6 +13,7 @@ interface DashboardNavbarProps {
 
 export function DashboardNavbar({ session, onSignOut }: DashboardNavbarProps) {
   const [perfilOpen, setPerfilOpen] = useState(false);
+  const [guiaOpen, setGuiaOpen] = useState(false);
 
   return (
     <>
@@ -25,6 +27,14 @@ export function DashboardNavbar({ session, onSignOut }: DashboardNavbarProps) {
           </div>
           
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setGuiaOpen(true)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              title="Guia de usuario"
+            >
+              <HelpCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Guia</span>
+            </button>
             {session?.user && (
               <button
                 onClick={() => setPerfilOpen(true)}
@@ -51,6 +61,7 @@ export function DashboardNavbar({ session, onSignOut }: DashboardNavbarProps) {
       </nav>
 
       <MiPerfil open={perfilOpen} onClose={() => setPerfilOpen(false)} />
+      <GuiaUsuario open={guiaOpen} onClose={() => setGuiaOpen(false)} />
     </>
   );
 }
