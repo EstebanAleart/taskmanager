@@ -2,14 +2,112 @@
 
 Sistema de gestion de tareas y proyectos para equipos de trabajo. Organiza workspaces, proyectos con tableros Kanban, asigna responsables por departamento y controla el progreso en tiempo real.
 
-## Tech Stack
+
+## Tech Stack Completo
 
 - **Framework:** Next.js 16 (App Router, React 19, TypeScript)
 - **Base de datos:** PostgreSQL (Supabase) + Prisma ORM
-- **Autenticacion:** Auth0 via NextAuth v5
+- **ORM:** Prisma Client
+- **Autenticación:** Auth0 via NextAuth v5
 - **UI:** shadcn/ui, Tailwind CSS, Lucide Icons
 - **Notificaciones:** Sonner (toasts)
-- **Package manager:** pnpm
+- **Gestión de dependencias:** pnpm
+- **Validación:** Zod
+- **Testing:** Vitest, Testing Library
+- **Linting:** ESLint, Prettier
+- **Diagrama ER:** Mermaid.js
+- **Gestión de archivos:** FileType, File, subida a storage
+- **Finanzas:** Módulo de cuentas, transacciones, presupuestos
+- **Otros:** React Query, Zustand, React Hook Form, clsx, date-fns, superjson, etc.
+
+---
+
+## Modelo Entidad-Relación (ER)
+
+### Diagrama visual
+
+```mermaid
+erDiagram
+	Department ||--o{ User : ""
+	Department ||--o{ Project : "many-to-many"
+	Workspace ||--o{ WorkspaceMember : ""
+	WorkspaceMember }o--|| User : ""
+	Workspace ||--o{ Project : ""
+	Project ||--o{ TaskColumn : ""
+	Project ||--o{ PriorityLevel : ""
+	Project ||--o{ ProjectLink : ""
+	Project ||--o{ ProjectMember : ""
+	ProjectMember }o--|| User : ""
+	Project ||--o{ Task : ""
+	Task }o--|| TaskColumn : ""
+	Task }o--|| PriorityLevel : ""
+	Task }o--|| User : "assignee"
+	Task ||--o{ Tag : "many-to-many"
+	Project ||--o{ File : ""
+	File }o--|| FileType : ""
+	File }o--|| User : "uploadedBy"
+	Workspace ||--o{ FinancialAccount : ""
+	Workspace ||--o{ TransactionCategory : ""
+	Workspace ||--o{ FinancialTransaction : ""
+	Workspace ||--o{ TransactionAttachment : ""
+	Workspace ||--o{ Budget : ""
+	FinancialAccount ||--o{ FinancialTransaction : ""
+	TransactionCategory ||--o{ FinancialTransaction : ""
+	FinancialTransaction }o--|| Project : "?"
+	FinancialTransaction }o--|| User : "createdBy"
+	FinancialTransaction ||--o{ TransactionAttachment : ""
+```
+
+### Descripción textual/tabular
+
+#### Tablas principales
+
+- **Department**: id, name, label, color, bgColor, createdAt, updatedAt
+- **User**: id, name, email, status, auth0Id, avatar, role, departmentId, initials, createdAt, updatedAt
+- **Workspace**: id, name, description, createdAt, updatedAt
+- **WorkspaceMember**: workspaceId, userId, role, joinedAt
+- **Project**: id, name, description, notes, workspaceId, color, createdAt, updatedAt
+- **ProjectMember**: userId, projectId, joinedAt
+- **TaskColumn**: id, name, label, color, icon, order, projectId
+- **PriorityLevel**: id, name, label, color, bgColor, dotColor, order, projectId
+- **Task**: id, title, description, priorityId, columnId, dueDate, createdAt, updatedAt, projectId, assigneeId
+- **Tag**: id, name
+- **FileType**: id, name, label, color, bgColor, extension, createdAt, updatedAt
+- **File**: id, name, typeId, size, url, uploadedAt, projectId, uploadedById
+- **ProjectLink**: id, title, url, projectId, createdAt
+- **FinancialAccount**: id, name, description, currency, balance, workspaceId, createdAt, updatedAt
+- **TransactionCategory**: id, name, type, color, workspaceId, createdAt, updatedAt
+- **FinancialTransaction**: id, amount, description, date, workspaceId, accountId, categoryId, projectId?, createdById, createdAt, updatedAt
+- **TransactionAttachment**: id, url, name, workspaceId, transactionId, uploadedAt
+- **Budget**: id, name, amount, description, workspaceId, createdAt, updatedAt
+
+#### Relaciones clave
+
+- Department 1─* User
+- Department *─* Project
+- Workspace 1─* WorkspaceMember *─1 User
+- Workspace 1─* Project
+- Project 1─* TaskColumn
+- Project 1─* PriorityLevel
+- Project 1─* ProjectLink
+- Project 1─* ProjectMember *─1 User
+- Project 1─* Task
+- Task *─* Tag
+- Project 1─* File
+- FileType 1─* File
+- User 1─* File (uploadedBy)
+- Workspace 1─* FinancialAccount
+- Workspace 1─* TransactionCategory
+- Workspace 1─* FinancialTransaction
+- Workspace 1─* TransactionAttachment
+- Workspace 1─* Budget
+- FinancialAccount 1─* FinancialTransaction
+- TransactionCategory 1─* FinancialTransaction
+- FinancialTransaction *─1 Project (opcional)
+- FinancialTransaction *─1 User (createdBy)
+- FinancialTransaction 1─* TransactionAttachment
+
+---
 
 ## Requisitos
 
@@ -189,29 +287,37 @@ Task >──< Tag (many-to-many)
 | `role` | String | `"owner"` (creador) o `"member"` (invitado) |
 | `joinedAt` | DateTime | Fecha de ingreso al workspace |
 
-## API Routes
 
-Todas las rutas (excepto auth y seed) requieren sesion activa y membresia al workspace.
+## API Routes (detalladas para IA)
 
-| Metodo | Ruta | Descripcion |
+> Todas las rutas (excepto auth y seed) requieren sesión activa y membresía al workspace.
+
+| Método | Ruta | Descripción |
 |---|---|---|
 | GET/POST | `/api/auth/[...nextauth]` | Auth (NextAuth + Auth0) |
-| GET/PUT | `/api/user/profile` | Obtener/actualizar perfil del usuario |
-| POST | `/api/workspaces` | Crear workspace (auto-owner) |
-| DELETE | `/api/workspaces/[id]` | Eliminar workspace (cascade) |
-| GET | `/api/workspaces/[id]/available-users` | Usuarios disponibles para invitar |
-| POST | `/api/workspaces/[id]/members` | Agregar miembro |
-| DELETE | `/api/workspaces/[id]/members/[userId]` | Remover miembro |
-| POST | `/api/projects` | Crear proyecto |
-| DELETE | `/api/projects/[id]` | Eliminar proyecto (cascade) |
-| POST | `/api/projects/[id]/columns` | Crear columna |
-| PATCH | `/api/projects/[id]/notes` | Guardar notas |
-| POST | `/api/projects/[id]/links` | Crear link |
-| DELETE | `/api/projects/[id]/links/[linkId]` | Eliminar link |
-| POST | `/api/tasks` | Crear tarea |
-| PATCH | `/api/tasks/[id]` | Editar tarea (todos los campos) |
-| DELETE | `/api/tasks/[id]` | Eliminar tarea |
-| GET | `/api/seed` | Seedear datos iniciales |
+| GET | `/api/user/profile` | Obtener perfil del usuario actual |
+| PUT | `/api/user/profile` | Actualizar perfil del usuario actual |
+| POST | `/api/workspaces` | Crear workspace (el usuario es owner) |
+| DELETE | `/api/workspaces/[workspaceId]` | Eliminar workspace (cascade) |
+| GET | `/api/workspaces/[workspaceId]/available-users` | Listar usuarios disponibles para invitar |
+| POST | `/api/workspaces/[workspaceId]/members` | Agregar miembro al workspace |
+| DELETE | `/api/workspaces/[workspaceId]/members/[userId]` | Remover miembro del workspace |
+| POST | `/api/projects` | Crear proyecto en workspace |
+| DELETE | `/api/projects/[projectId]` | Eliminar proyecto (cascade) |
+| POST | `/api/projects/[projectId]/columns` | Crear columna Kanban |
+| PATCH | `/api/projects/[projectId]/notes` | Guardar notas del proyecto |
+| POST | `/api/projects/[projectId]/links` | Crear link externo en proyecto |
+| DELETE | `/api/projects/[projectId]/links/[linkId]` | Eliminar link externo |
+| POST | `/api/tasks` | Crear tarea en proyecto |
+| PATCH | `/api/tasks/[taskId]` | Editar tarea (todos los campos) |
+| DELETE | `/api/tasks/[taskId]` | Eliminar tarea |
+| POST | `/api/seed` | Seedear datos iniciales |
+
+### Notas para IA
+- Todos los endpoints validan sesión y membresía antes de operar.
+- Los endpoints de finanzas (cuentas, transacciones, presupuestos) deben agregarse aquí cuando se implementen.
+
+---
 
 ## Scripts
 
