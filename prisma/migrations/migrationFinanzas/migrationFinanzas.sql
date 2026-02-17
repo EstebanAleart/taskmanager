@@ -232,10 +232,21 @@ CREATE TABLE IF NOT EXISTS "budgets" (
     "name" TEXT NOT NULL,
     "amount" FLOAT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
+    "status" TEXT NOT NULL DEFAULT 'pending',
     "workspaceId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
+
+-- Add status column to existing budgets table (safe for re-runs)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'budgets' AND column_name = 'status'
+  ) THEN
+    ALTER TABLE "budgets" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'pending';
+  END IF;
+END $$;
 
 
 -- =========================================================

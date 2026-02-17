@@ -28,12 +28,18 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { name, amount, description } = body;
+  const { name, amount, description, status } = body;
 
   const data: Record<string, unknown> = {};
   if (name !== undefined) data.name = name.trim();
   if (amount !== undefined) data.amount = amount;
   if (description !== undefined) data.description = description.trim();
+  if (status !== undefined) {
+    if (!["pending", "approved", "rejected"].includes(status)) {
+      return NextResponse.json({ error: "Estado inválido." }, { status: 400 });
+    }
+    data.status = status;
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No hay campos para actualizar." }, { status: 400 });

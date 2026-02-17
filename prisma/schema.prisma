@@ -312,6 +312,7 @@ model Budget {
   name        String
   amount      Float
   description String   @default("")
+  status      String   @default("pending") // "pending" | "approved" | "rejected"
 
   workspaceId String
   createdAt   DateTime @default(now())
