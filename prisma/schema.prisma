@@ -8,6 +8,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+//
+// ------------------------------
+// DEPARTMENTS, USERS, WORKSPACES, PROJECTS
+// ------------------------------
+//
+
 model Department {
   id        String    @id @default(cuid())
   name      String    @unique
@@ -48,10 +54,13 @@ model User {
   initials      String
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+
   uploadedFiles File[]          @relation("FileUploader")
   projects      ProjectMember[]
   workspaces    WorkspaceMember[]
   assignedTasks Task[]          @relation("TaskAssignee")
+  createdTransactions FinancialTransaction[]
+
   department    Department      @relation(fields: [departmentId], references: [id])
 
   @@map("users")
@@ -66,6 +75,11 @@ model Workspace {
 
   members  WorkspaceMember[]
   projects Project[]
+
+  financialAccounts     FinancialAccount[]
+  transactionCategories TransactionCategory[]
+  financialTransactions FinancialTransaction[]
+  budgets               Budget[]
 
   @@map("workspaces")
 }
@@ -91,7 +105,8 @@ model Project {
   workspaceId String
   color       String
   createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  updatedAt   DateTime        @default(now())
+
   files       File[]
   links       ProjectLink[]
   members     ProjectMember[]
@@ -100,6 +115,8 @@ model Project {
   departments Department[]    @relation("DepartmentToProject")
   workspace   Workspace       @relation(fields: [workspaceId], references: [id])
   tasks       Task[]
+
+  financialTransactions FinancialTransaction[]
 
   @@map("projects")
 }
@@ -149,6 +166,7 @@ model ProjectMember {
   userId    String
   projectId String
   joinedAt  DateTime @default(now())
+
   project   Project  @relation(fields: [projectId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
@@ -164,9 +182,10 @@ model Task {
   columnId    String
   dueDate     DateTime?
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  updatedAt   DateTime      @default(now())
   projectId   String
   assigneeId  String
+
   assignee    User          @relation("TaskAssignee", fields: [assigneeId], references: [id])
   column      TaskColumn    @relation(fields: [columnId], references: [id])
   priority    PriorityLevel @relation(fields: [priorityId], references: [id])
@@ -193,6 +212,7 @@ model File {
   uploadedAt   DateTime @default(now())
   projectId    String
   uploadedById String
+
   project      Project  @relation(fields: [projectId], references: [id])
   type         FileType @relation(fields: [typeId], references: [id])
   uploadedBy   User     @relation("FileUploader", fields: [uploadedById], references: [id])
@@ -200,4 +220,106 @@ model File {
   @@map("files")
 }
 
+//
+// ------------------------------
+// FINANCE MODULE (GESTION)
+// ------------------------------
+//
+
+model FinancialAccount {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  currency    String   @default("ARS")
+  balance     Float    @default(0)
+
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactions FinancialTransaction[]
+
+  @@index([workspaceId])
+  @@map("financial_accounts")
+}
+
+model TransactionCategory {
+  id          String   @id @default(cuid())
+  name        String
+  type        String // "income" | "expense"
+  color       String   @default("")
+
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactions FinancialTransaction[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("transaction_categories")
+}
+
+model FinancialTransaction {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String   @default("")
+  date        DateTime @default(now())
+
+  workspaceId String
+  accountId   String
+  categoryId  String
+  projectId   String?
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  account     FinancialAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category    TransactionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  project     Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy   User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  attachments TransactionAttachment[]
+
+  @@index([workspaceId])
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([projectId])
+  @@index([createdById])
+  @@index([date])
+  @@map("financial_transactions")
+}
+
+model TransactionAttachment {
+  id            String   @id @default(cuid())
+  url           String
+  name          String
+  transactionId String
+  uploadedAt    DateTime @default(now())
+
+  transaction FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@map("transaction_attachments")
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  name        String
+  amount      Float
+  description String   @default("")
+
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("budgets")
+}
 
