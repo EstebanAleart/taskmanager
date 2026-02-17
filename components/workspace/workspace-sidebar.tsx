@@ -8,6 +8,7 @@ import {
   Users,
   FolderKanban,
   BarChart3,
+  DollarSign,
   ChevronDown,
   Plus,
   Search,
@@ -62,6 +63,7 @@ const NAV_ITEMS = [
   { id: "proyectos", label: "Proyectos", icon: FolderKanban },
   { id: "miembros", label: "Miembros", icon: Users },
   { id: "reportes", label: "Reportes", icon: BarChart3 },
+  { id: "finanzas", label: "Finanzas", icon: DollarSign },
 ];
 
 export function WorkspaceSidebar({
