@@ -2,14 +2,112 @@
 
 Sistema de gestion de tareas y proyectos para equipos de trabajo. Organiza workspaces, proyectos con tableros Kanban, asigna responsables por departamento y controla el progreso en tiempo real.
 
-## Tech Stack
+
+## Tech Stack Completo
 
 - **Framework:** Next.js 16 (App Router, React 19, TypeScript)
 - **Base de datos:** PostgreSQL (Supabase) + Prisma ORM
-- **Autenticacion:** Auth0 via NextAuth v5
+- **ORM:** Prisma Client
+- **Autenticación:** Auth0 via NextAuth v5
 - **UI:** shadcn/ui, Tailwind CSS, Lucide Icons
 - **Notificaciones:** Sonner (toasts)
-- **Package manager:** pnpm
+- **Gestión de dependencias:** pnpm
+- **Validación:** Zod
+- **Testing:** Vitest, Testing Library
+- **Linting:** ESLint, Prettier
+- **Diagrama ER:** Mermaid.js
+- **Gestión de archivos:** FileType, File, subida a storage
+- **Finanzas:** Módulo de cuentas, transacciones, presupuestos
+- **Otros:** React Query, Zustand, React Hook Form, clsx, date-fns, superjson, etc.
+
+---
+
+## Modelo Entidad-Relación (ER)
+
+### Diagrama visual
+
+```mermaid
+erDiagram
+	Department ||--o{ User : ""
+	Department ||--o{ Project : "many-to-many"
+	Workspace ||--o{ WorkspaceMember : ""
+	WorkspaceMember }o--|| User : ""
+	Workspace ||--o{ Project : ""
+	Project ||--o{ TaskColumn : ""
+	Project ||--o{ PriorityLevel : ""
+	Project ||--o{ ProjectLink : ""
+	Project ||--o{ ProjectMember : ""
+	ProjectMember }o--|| User : ""
+	Project ||--o{ Task : ""
+	Task }o--|| TaskColumn : ""
+	Task }o--|| PriorityLevel : ""
+	Task }o--|| User : "assignee"
+	Task ||--o{ Tag : "many-to-many"
+	Project ||--o{ File : ""
+	File }o--|| FileType : ""
+	File }o--|| User : "uploadedBy"
+	Workspace ||--o{ FinancialAccount : ""
+	Workspace ||--o{ TransactionCategory : ""
+	Workspace ||--o{ FinancialTransaction : ""
+	Workspace ||--o{ TransactionAttachment : ""
+	Workspace ||--o{ Budget : ""
+	FinancialAccount ||--o{ FinancialTransaction : ""
+	TransactionCategory ||--o{ FinancialTransaction : ""
+	FinancialTransaction }o--|| Project : "?"
+	FinancialTransaction }o--|| User : "createdBy"
+	FinancialTransaction ||--o{ TransactionAttachment : ""
+```
+
+### Descripción textual/tabular
+
+#### Tablas principales
+
+- **Department**: id, name, label, color, bgColor, createdAt, updatedAt
+- **User**: id, name, email, status, auth0Id, avatar, role, departmentId, initials, createdAt, updatedAt
+- **Workspace**: id, name, description, createdAt, updatedAt
+- **WorkspaceMember**: workspaceId, userId, role, joinedAt
+- **Project**: id, name, description, notes, workspaceId, color, createdAt, updatedAt
+- **ProjectMember**: userId, projectId, joinedAt
+- **TaskColumn**: id, name, label, color, icon, order, projectId
+- **PriorityLevel**: id, name, label, color, bgColor, dotColor, order, projectId
+- **Task**: id, title, description, priorityId, columnId, dueDate, createdAt, updatedAt, projectId, assigneeId
+- **Tag**: id, name
+- **FileType**: id, name, label, color, bgColor, extension, createdAt, updatedAt
+- **File**: id, name, typeId, size, url, uploadedAt, projectId, uploadedById
+- **ProjectLink**: id, title, url, projectId, createdAt
+- **FinancialAccount**: id, name, description, currency, balance, workspaceId, createdAt, updatedAt
+- **TransactionCategory**: id, name, type, color, workspaceId, createdAt, updatedAt
+- **FinancialTransaction**: id, amount, description, date, workspaceId, accountId, categoryId, projectId?, createdById, createdAt, updatedAt
+- **TransactionAttachment**: id, url, name, workspaceId, transactionId, uploadedAt
+- **Budget**: id, name, amount, description, workspaceId, createdAt, updatedAt
+
+#### Relaciones clave
+
+- Department 1─* User
+- Department *─* Project
+- Workspace 1─* WorkspaceMember *─1 User
+- Workspace 1─* Project
+- Project 1─* TaskColumn
+- Project 1─* PriorityLevel
+- Project 1─* ProjectLink
+- Project 1─* ProjectMember *─1 User
+- Project 1─* Task
+- Task *─* Tag
+- Project 1─* File
+- FileType 1─* File
+- User 1─* File (uploadedBy)
+- Workspace 1─* FinancialAccount
+- Workspace 1─* TransactionCategory
+- Workspace 1─* FinancialTransaction
+- Workspace 1─* TransactionAttachment
+- Workspace 1─* Budget
+- FinancialAccount 1─* FinancialTransaction
+- TransactionCategory 1─* FinancialTransaction
+- FinancialTransaction *─1 Project (opcional)
+- FinancialTransaction *─1 User (createdBy)
+- FinancialTransaction 1─* TransactionAttachment
+
+---
 
 ## Requisitos
 
@@ -106,9 +204,16 @@ Luego desde el dashboard hacer click en "Inicializar datos" para seedear departa
 /login                      Login con Auth0
 /no-access                  Cuenta pendiente de activacion
 /dashboard                  Lista de workspaces del usuario
-/workspace/[id]             Workspace (proyectos, miembros, reportes, sectores)
+/workspace/[id]             Workspace (proyectos, miembros, reportes, sectores, finanzas)
 /workspace/[id]/project/[id] Proyecto (kanban, notas, links)
 ```
+
+Las secciones del workspace se manejan con `?section=X` en la URL:
+- `?section=proyectos` (default)
+- `?section=miembros`
+- `?section=reportes`
+- `?section=sector&dept=[deptId]`
+- `?section=finanzas`
 
 ## Funcionalidades
 
@@ -143,9 +248,20 @@ Luego desde el dashboard hacer click en "Inicializar datos" para seedear departa
 - Dialog de detalle completo para editar cualquier campo
 - Eliminar tareas con confirmacion via toast
 
+### Finanzas
+- Seccion accesible desde el sidebar del workspace (`?section=finanzas`)
+- 4 tabs internas: Transacciones, Cuentas, Categorias, Presupuestos
+- **Cuentas**: CRUD completo (nombre, descripcion, moneda ARS/USD/EUR, balance). Cards con balance formateado
+- **Categorias**: CRUD con tipo income/expense. Vista agrupada por tipo con iconos verde/rojo
+- **Transacciones**: CRUD vinculado a cuenta + categoria + proyecto (opcional). Lista con iconos de ingreso/gasto, fecha, monto formateado, badge de categoria
+- **Presupuestos**: CRUD basico (nombre, monto, descripcion). Cards con monto formateado
+- Todas las operaciones usan Dialog de shadcn para crear/editar y Sonner toast para confirmar eliminacion
+- Requiere al menos una cuenta y una categoria para crear transacciones
+- Componente: `components/workspace/workspace-finance.tsx`
+
 ### Eliminacion segura
-- Workspace, proyecto y tarea con confirmacion via Sonner toast
-- Cascade delete en la API (elimina datos dependientes via `$transaction`)
+- Workspace, proyecto, tarea y entidades financieras con confirmacion via Sonner toast
+- Cascade delete en la API (elimina datos dependientes via `$transaction` o `onDelete: Cascade` en Prisma)
 
 ### Control de acceso
 
@@ -170,6 +286,13 @@ Project ──< ProjectMember >── User
 Project ──< Task
 Task ──> TaskColumn, PriorityLevel, User (assignee)
 Task >──< Tag (many-to-many)
+
+Workspace ──< FinancialAccount ──< FinancialTransaction
+Workspace ──< TransactionCategory ──< FinancialTransaction
+Workspace ──< Budget
+FinancialTransaction ──> User (createdBy)
+FinancialTransaction ──>? Project (opcional)
+FinancialTransaction ──< TransactionAttachment
 ```
 
 ### Campos clave del modelo User
@@ -189,29 +312,126 @@ Task >──< Tag (many-to-many)
 | `role` | String | `"owner"` (creador) o `"member"` (invitado) |
 | `joinedAt` | DateTime | Fecha de ingreso al workspace |
 
-## API Routes
 
-Todas las rutas (excepto auth y seed) requieren sesion activa y membresia al workspace.
+## API Routes (detalladas para IA)
 
-| Metodo | Ruta | Descripcion |
+> Todas las rutas (excepto auth y seed) requieren sesión activa y membresía al workspace.
+
+| Método | Ruta | Descripción |
 |---|---|---|
 | GET/POST | `/api/auth/[...nextauth]` | Auth (NextAuth + Auth0) |
-| GET/PUT | `/api/user/profile` | Obtener/actualizar perfil del usuario |
-| POST | `/api/workspaces` | Crear workspace (auto-owner) |
-| DELETE | `/api/workspaces/[id]` | Eliminar workspace (cascade) |
-| GET | `/api/workspaces/[id]/available-users` | Usuarios disponibles para invitar |
-| POST | `/api/workspaces/[id]/members` | Agregar miembro |
-| DELETE | `/api/workspaces/[id]/members/[userId]` | Remover miembro |
-| POST | `/api/projects` | Crear proyecto |
-| DELETE | `/api/projects/[id]` | Eliminar proyecto (cascade) |
-| POST | `/api/projects/[id]/columns` | Crear columna |
-| PATCH | `/api/projects/[id]/notes` | Guardar notas |
-| POST | `/api/projects/[id]/links` | Crear link |
-| DELETE | `/api/projects/[id]/links/[linkId]` | Eliminar link |
-| POST | `/api/tasks` | Crear tarea |
-| PATCH | `/api/tasks/[id]` | Editar tarea (todos los campos) |
-| DELETE | `/api/tasks/[id]` | Eliminar tarea |
-| GET | `/api/seed` | Seedear datos iniciales |
+| GET | `/api/user/profile` | Obtener perfil del usuario actual |
+| PUT | `/api/user/profile` | Actualizar perfil del usuario actual |
+| POST | `/api/workspaces` | Crear workspace (el usuario es owner) |
+| DELETE | `/api/workspaces/[workspaceId]` | Eliminar workspace (cascade) |
+| GET | `/api/workspaces/[workspaceId]/available-users` | Listar usuarios disponibles para invitar |
+| POST | `/api/workspaces/[workspaceId]/members` | Agregar miembro al workspace |
+| DELETE | `/api/workspaces/[workspaceId]/members/[userId]` | Remover miembro del workspace |
+| POST | `/api/projects` | Crear proyecto en workspace |
+| DELETE | `/api/projects/[projectId]` | Eliminar proyecto (cascade) |
+| POST | `/api/projects/[projectId]/columns` | Crear columna Kanban |
+| PATCH | `/api/projects/[projectId]/notes` | Guardar notas del proyecto |
+| POST | `/api/projects/[projectId]/links` | Crear link externo en proyecto |
+| DELETE | `/api/projects/[projectId]/links/[linkId]` | Eliminar link externo |
+| POST | `/api/tasks` | Crear tarea en proyecto |
+| PATCH | `/api/tasks/[taskId]` | Editar tarea (todos los campos) |
+| DELETE | `/api/tasks/[taskId]` | Eliminar tarea |
+| POST | `/api/seed` | Seedear datos iniciales |
+| **Finanzas — Cuentas** | | |
+| GET | `/api/workspaces/[workspaceId]/accounts` | Listar cuentas financieras del workspace |
+| POST | `/api/workspaces/[workspaceId]/accounts` | Crear cuenta financiera |
+| PATCH | `/api/workspaces/[workspaceId]/accounts/[accountId]` | Editar cuenta financiera |
+| DELETE | `/api/workspaces/[workspaceId]/accounts/[accountId]` | Eliminar cuenta financiera |
+| **Finanzas — Categorías** | | |
+| GET | `/api/workspaces/[workspaceId]/categories` | Listar categorías de transacción |
+| POST | `/api/workspaces/[workspaceId]/categories` | Crear categoría (type: income/expense) |
+| PATCH | `/api/workspaces/[workspaceId]/categories/[categoryId]` | Editar categoría |
+| DELETE | `/api/workspaces/[workspaceId]/categories/[categoryId]` | Eliminar categoría |
+| **Finanzas — Transacciones** | | |
+| GET | `/api/workspaces/[workspaceId]/transactions` | Listar transacciones (incluye account, category, project, createdBy) |
+| POST | `/api/workspaces/[workspaceId]/transactions` | Crear transacción |
+| PATCH | `/api/workspaces/[workspaceId]/transactions/[transactionId]` | Editar transacción |
+| DELETE | `/api/workspaces/[workspaceId]/transactions/[transactionId]` | Eliminar transacción |
+| **Finanzas — Adjuntos** | | |
+| GET | `/api/workspaces/[workspaceId]/transactions/[transactionId]/attachments` | Listar adjuntos de transacción |
+| POST | `/api/workspaces/[workspaceId]/transactions/[transactionId]/attachments` | Crear adjunto (url, name) |
+| DELETE | `.../attachments/[attachmentId]` | Eliminar adjunto |
+| **Finanzas — Presupuestos** | | |
+| GET | `/api/workspaces/[workspaceId]/budgets` | Listar presupuestos del workspace |
+| POST | `/api/workspaces/[workspaceId]/budgets` | Crear presupuesto |
+| PATCH | `/api/workspaces/[workspaceId]/budgets/[budgetId]` | Editar presupuesto |
+| DELETE | `/api/workspaces/[workspaceId]/budgets/[budgetId]` | Eliminar presupuesto |
+
+### Notas para IA
+- Todos los endpoints validan sesión y membresía antes de operar.
+- **API routes de finanzas:** `app/api/workspaces/[workspaceId]/{accounts,categories,transactions,budgets}/`
+- **Frontend de finanzas:** `components/workspace/workspace-finance.tsx` (componente client-side con tabs internas)
+- **Integración:** sidebar en `workspace-sidebar.tsx` (NAV_ITEMS), sección en `workspace-content.tsx`
+- **Modelos de finanzas:** `prisma/schema.prisma` (sección FINANCE MODULE, línea ~229)
+- **Patrón de datos:** Finanzas usa fetch client-side (useEffect + fetch a API routes), no server queries
+- **Migraciones:** `prisma/migrations/migrationFinanzas/migrationFinanzas.sql` contiene la migración SQL para Supabase
+
+---
+
+## Estructura de archivos clave
+
+```
+app/
+├── api/
+│   ├── auth/[...nextauth]/route.ts
+│   ├── projects/[projectId]/{route,columns,links,notes}/route.ts
+│   ├── tasks/{route.ts,[taskId]/route.ts}
+│   ├── user/profile/route.ts
+│   ├── seed/route.ts
+│   ├── workspaces/{route.ts,[workspaceId]/route.ts}
+│   └── workspaces/[workspaceId]/
+│       ├── available-users/route.ts
+│       ├── members/{route.ts,[userId]/route.ts}
+│       ├── accounts/{route.ts,[accountId]/route.ts}
+│       ├── categories/{route.ts,[categoryId]/route.ts}
+│       ├── transactions/{route.ts,[transactionId]/route.ts}
+│       ├── transactions/[transactionId]/attachments/{route.ts,[attachmentId]/route.ts}
+│       └── budgets/{route.ts,[budgetId]/route.ts}
+├── dashboard/page.tsx
+├── workspace/[workspaceId]/
+│   ├── layout.tsx                      # Server: auth guard + sidebar data
+│   ├── page.tsx                        # Server: lee ?section= y fetch condicional
+│   └── project/[projectId]/page.tsx
+├── layout.tsx
+└── page.tsx
+
+components/
+├── workspace/
+│   ├── workspace-sidebar.tsx           # Sidebar con NAV_ITEMS (proyectos, miembros, reportes, finanzas)
+│   ├── workspace-content.tsx           # Switch de secciones por activeSection
+│   ├── workspace-layout-client.tsx     # Layout client (sidebar + main)
+│   ├── workspace-projects.tsx          # Seccion proyectos
+│   ├── workspace-members.tsx           # Seccion miembros
+│   ├── workspace-reports.tsx           # Seccion reportes
+│   ├── workspace-sector-view.tsx       # Seccion sector/departamento
+│   └── workspace-finance.tsx           # Seccion finanzas (tabs: transacciones/cuentas/categorias/presupuestos)
+├── project/
+│   ├── project-content.tsx             # Tabs: tablero/notas/links
+│   ├── project-kanban.tsx
+│   ├── project-notes.tsx
+│   └── project-links.tsx
+├── ui/                                 # shadcn/ui components
+├── MiPerfil.tsx
+├── GuiaUsuario.tsx
+└── create-project-dialog.tsx
+
+lib/
+├── auth.ts                             # NextAuth config
+├── prisma.ts                           # Prisma client singleton
+├── queries.ts                          # Server queries (Prisma)
+└── utils.ts                            # cn() helper
+
+prisma/
+├── schema.prisma                       # Todos los modelos (incluye FINANCE MODULE)
+└── migrations/migrationFinanzas/       # Migración SQL para Supabase
+```
+
+---
 
 ## Scripts
 

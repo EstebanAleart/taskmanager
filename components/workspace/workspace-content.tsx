@@ -6,6 +6,7 @@ import { WorkspaceProjects } from "@/components/workspace/workspace-projects";
 import { WorkspaceReports } from "@/components/workspace/workspace-reports";
 import { WorkspaceSectorView } from "@/components/workspace/workspace-sector-view";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { WorkspaceFinance } from "@/components/workspace/workspace-finance";
 
 interface MemberItem {
   userId: string;
@@ -144,6 +145,12 @@ export function WorkspaceContent({
               tasks={sectorData.tasks}
               workspaceId={workspace.id}
             />
+          </div>
+        )}
+
+        {activeSection === "finanzas" && (
+          <div className="mx-auto max-w-5xl">
+            <WorkspaceFinance workspaceId={workspace.id} />
           </div>
         )}
       </div>
