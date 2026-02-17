@@ -1,10 +1,14 @@
 -- =========================================================
--- BASE COMPLETA TASKMANAGER + MÓDULO FINANCIERO
+-- BASE TASKMANAGER + FINANCE
+-- SAFE / IDEMPOTENTE PARA POSTGRES (SUPABASE)
 -- =========================================================
 
--- Table: departments
-CREATE TABLE "departments" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+-- =========================
+-- TABLES
+-- =========================
+
+CREATE TABLE IF NOT EXISTS "departments" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "color" TEXT NOT NULL DEFAULT '',
@@ -12,11 +16,13 @@ CREATE TABLE "departments" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
-CREATE UNIQUE INDEX "departments_name_key" ON "departments"("name");
 
--- Table: file_types
-CREATE TABLE "file_types" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+CREATE UNIQUE INDEX IF NOT EXISTS "departments_name_key"
+ON "departments"("name");
+
+
+CREATE TABLE IF NOT EXISTS "file_types" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "color" TEXT NOT NULL DEFAULT '',
@@ -25,11 +31,13 @@ CREATE TABLE "file_types" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
-CREATE UNIQUE INDEX "file_types_name_key" ON "file_types"("name");
 
--- Table: users
-CREATE TABLE "users" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+CREATE UNIQUE INDEX IF NOT EXISTS "file_types_name_key"
+ON "file_types"("name");
+
+
+CREATE TABLE IF NOT EXISTS "users" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'active',
@@ -41,20 +49,24 @@ CREATE TABLE "users" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
-CREATE UNIQUE INDEX "users_auth0Id_key" ON "users"("auth0Id");
 
--- Table: workspaces
-CREATE TABLE "workspaces" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+CREATE UNIQUE INDEX IF NOT EXISTS "users_email_key"
+ON "users"("email");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "users_auth0Id_key"
+ON "users"("auth0Id");
+
+
+CREATE TABLE IF NOT EXISTS "workspaces" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
--- Table: workspace_members
-CREATE TABLE "workspace_members" (
+
+CREATE TABLE IF NOT EXISTS "workspace_members" (
     "workspaceId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "role" TEXT NOT NULL DEFAULT 'member',
@@ -62,9 +74,9 @@ CREATE TABLE "workspace_members" (
     PRIMARY KEY ("workspaceId","userId")
 );
 
--- Table: projects
-CREATE TABLE "projects" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+
+CREATE TABLE IF NOT EXISTS "projects" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "notes" TEXT NOT NULL DEFAULT '',
@@ -74,18 +86,18 @@ CREATE TABLE "projects" (
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
--- Table: project_links
-CREATE TABLE "project_links" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+
+CREATE TABLE IF NOT EXISTS "project_links" (
+    "id" TEXT PRIMARY KEY,
     "title" TEXT NOT NULL,
     "url" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table: task_columns
-CREATE TABLE "task_columns" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+
+CREATE TABLE IF NOT EXISTS "task_columns" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "color" TEXT NOT NULL DEFAULT '',
@@ -94,9 +106,9 @@ CREATE TABLE "task_columns" (
     "projectId" TEXT NOT NULL
 );
 
--- Table: priority_levels
-CREATE TABLE "priority_levels" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+
+CREATE TABLE IF NOT EXISTS "priority_levels" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "color" TEXT NOT NULL DEFAULT '',
@@ -106,17 +118,17 @@ CREATE TABLE "priority_levels" (
     "projectId" TEXT NOT NULL
 );
 
--- Table: project_members
-CREATE TABLE "project_members" (
+
+CREATE TABLE IF NOT EXISTS "project_members" (
     "userId" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY ("userId","projectId")
 );
 
--- Table: tasks
-CREATE TABLE "tasks" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+
+CREATE TABLE IF NOT EXISTS "tasks" (
+    "id" TEXT PRIMARY KEY,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "priorityId" TEXT NOT NULL,
@@ -128,16 +140,18 @@ CREATE TABLE "tasks" (
     "assigneeId" TEXT NOT NULL
 );
 
--- Table: tags
-CREATE TABLE "tags" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+
+CREATE TABLE IF NOT EXISTS "tags" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL
 );
-CREATE UNIQUE INDEX "tags_name_key" ON "tags"("name");
 
--- Table: files
-CREATE TABLE "files" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+CREATE UNIQUE INDEX IF NOT EXISTS "tags_name_key"
+ON "tags"("name");
+
+
+CREATE TABLE IF NOT EXISTS "files" (
+    "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "typeId" TEXT NOT NULL,
     "size" TEXT NOT NULL,
@@ -147,16 +161,25 @@ CREATE TABLE "files" (
     "uploadedById" TEXT NOT NULL
 );
 
--- Join tables
-CREATE TABLE "_DepartmentToProject" ("A" TEXT NOT NULL, "B" TEXT NOT NULL, PRIMARY KEY ("A","B"));
-CREATE TABLE "_TagToTask" ("A" TEXT NOT NULL, "B" TEXT NOT NULL, PRIMARY KEY ("A","B"));
 
--- =========================================================
--- FINANCE MODULE
--- =========================================================
+CREATE TABLE IF NOT EXISTS "_DepartmentToProject" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+    PRIMARY KEY ("A","B")
+);
 
--- Financial Accounts
-CREATE TABLE "financial_accounts" (
+CREATE TABLE IF NOT EXISTS "_TagToTask" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+    PRIMARY KEY ("A","B")
+);
+
+
+-- =========================
+-- FINANCE
+-- =========================
+
+CREATE TABLE IF NOT EXISTS "financial_accounts" (
     "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
@@ -167,8 +190,8 @@ CREATE TABLE "financial_accounts" (
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
--- Transaction Categories
-CREATE TABLE "transaction_categories" (
+
+CREATE TABLE IF NOT EXISTS "transaction_categories" (
     "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -179,8 +202,8 @@ CREATE TABLE "transaction_categories" (
     UNIQUE("workspaceId","name")
 );
 
--- Financial Transactions
-CREATE TABLE "financial_transactions" (
+
+CREATE TABLE IF NOT EXISTS "financial_transactions" (
     "id" TEXT PRIMARY KEY,
     "amount" FLOAT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
@@ -194,8 +217,8 @@ CREATE TABLE "financial_transactions" (
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
--- Transaction Attachments
-CREATE TABLE "transaction_attachments" (
+
+CREATE TABLE IF NOT EXISTS "transaction_attachments" (
     "id" TEXT PRIMARY KEY,
     "url" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -203,8 +226,8 @@ CREATE TABLE "transaction_attachments" (
     "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Budgets
-CREATE TABLE "budgets" (
+
+CREATE TABLE IF NOT EXISTS "budgets" (
     "id" TEXT PRIMARY KEY,
     "name" TEXT NOT NULL,
     "amount" FLOAT NOT NULL,
@@ -214,80 +237,37 @@ CREATE TABLE "budgets" (
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
+
 -- =========================================================
--- FOREIGN KEYS
+-- FOREIGN KEYS (SAFE RECREATE)
 -- =========================================================
 
--- Users -> Departments
-ALTER TABLE "users" ADD CONSTRAINT "users_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "departments"("id") ON DELETE RESTRICT;
+-- Helper pattern:
+-- DROP CONSTRAINT IF EXISTS + ADD CONSTRAINT
 
--- Workspace Members
-ALTER TABLE "workspace_members" ADD CONSTRAINT "workspace_members_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE;
-ALTER TABLE "workspace_members" ADD CONSTRAINT "workspace_members_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE;
+ALTER TABLE "users"
+DROP CONSTRAINT IF EXISTS "users_departmentId_fkey";
+ALTER TABLE "users"
+ADD CONSTRAINT "users_departmentId_fkey"
+FOREIGN KEY ("departmentId")
+REFERENCES "departments"("id")
+ON DELETE RESTRICT;
 
--- Projects
-ALTER TABLE "projects" ADD CONSTRAINT "projects_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE;
 
--- Project Links
-ALTER TABLE "project_links" ADD CONSTRAINT "project_links_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE;
+ALTER TABLE "workspace_members"
+DROP CONSTRAINT IF EXISTS "workspace_members_workspaceId_fkey";
+ALTER TABLE "workspace_members"
+ADD CONSTRAINT "workspace_members_workspaceId_fkey"
+FOREIGN KEY ("workspaceId")
+REFERENCES "workspaces"("id")
+ON DELETE CASCADE;
 
--- Task Columns
-ALTER TABLE "task_columns" ADD CONSTRAINT "task_columns_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE;
+ALTER TABLE "workspace_members"
+DROP CONSTRAINT IF EXISTS "workspace_members_userId_fkey";
+ALTER TABLE "workspace_members"
+ADD CONSTRAINT "workspace_members_userId_fkey"
+FOREIGN KEY ("userId")
+REFERENCES "users"("id")
+ON DELETE CASCADE;
 
--- Priority Levels
-ALTER TABLE "priority_levels" ADD CONSTRAINT "priority_levels_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE;
 
--- Project Members
-ALTER TABLE "project_members" ADD CONSTRAINT "project_members_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE;
-ALTER TABLE "project_members" ADD CONSTRAINT "project_members_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE;
-
--- Tasks
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "users"("id") ON DELETE RESTRICT;
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_columnId_fkey" FOREIGN KEY ("columnId") REFERENCES "task_columns"("id") ON DELETE CASCADE;
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_priorityId_fkey" FOREIGN KEY ("priorityId") REFERENCES "priority_levels"("id") ON DELETE CASCADE;
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE;
-
--- Files
-ALTER TABLE "files" ADD CONSTRAINT "files_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE;
-ALTER TABLE "files" ADD CONSTRAINT "files_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "file_types"("id") ON DELETE RESTRICT;
-ALTER TABLE "files" ADD CONSTRAINT "files_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "users"("id") ON DELETE CASCADE;
-
--- Department <-> Project M2M
-ALTER TABLE "_DepartmentToProject" ADD CONSTRAINT "_DepartmentToProject_A_fkey" FOREIGN KEY ("A") REFERENCES "departments"("id") ON DELETE CASCADE;
-ALTER TABLE "_DepartmentToProject" ADD CONSTRAINT "_DepartmentToProject_B_fkey" FOREIGN KEY ("B") REFERENCES "projects"("id") ON DELETE CASCADE;
-
--- Tag <-> Task M2M
-ALTER TABLE "_TagToTask" ADD CONSTRAINT "_TagToTask_A_fkey" FOREIGN KEY ("A") REFERENCES "tags"("id") ON DELETE CASCADE;
-ALTER TABLE "_TagToTask" ADD CONSTRAINT "_TagToTask_B_fkey" FOREIGN KEY ("B") REFERENCES "tasks"("id") ON DELETE CASCADE;
-
--- Financial Accounts -> Workspace
-ALTER TABLE "financial_accounts" ADD CONSTRAINT "financial_accounts_workspaceId_fkey"
-    FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE;
-
--- Transaction Categories -> Workspace
-ALTER TABLE "transaction_categories" ADD CONSTRAINT "transaction_categories_workspaceId_fkey"
-    FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE;
-
--- Financial Transactions -> Workspace, Account, Category, Project, User
-ALTER TABLE "financial_transactions" ADD CONSTRAINT "financial_transactions_workspaceId_fkey"
-    FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE;
-
-ALTER TABLE "financial_transactions" ADD CONSTRAINT "financial_transactions_accountId_fkey"
-    FOREIGN KEY ("accountId") REFERENCES "financial_accounts"("id") ON DELETE CASCADE;
-
-ALTER TABLE "financial_transactions" ADD CONSTRAINT "financial_transactions_categoryId_fkey"
-    FOREIGN KEY ("categoryId") REFERENCES "transaction_categories"("id") ON DELETE CASCADE;
-
-ALTER TABLE "financial_transactions" ADD CONSTRAINT "financial_transactions_projectId_fkey"
-    FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE SET NULL;
-
-ALTER TABLE "financial_transactions" ADD CONSTRAINT "financial_transactions_createdById_fkey"
-    FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT;
-
--- Transaction Attachments -> Financial Transactions
-ALTER TABLE "transaction_attachments" ADD CONSTRAINT "transaction_attachments_transactionId_fkey"
-    FOREIGN KEY ("transactionId") REFERENCES "financial_transactions"("id") ON DELETE CASCADE;
-
--- Budgets -> Workspace
-ALTER TABLE "budgets" ADD CONSTRAINT "budgets_workspaceId_fkey"
-    FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE;
