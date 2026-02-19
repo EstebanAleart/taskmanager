@@ -713,33 +713,36 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
 
               {/* Summary cards */}
               {filteredTransactions.length > 0 && (
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-xl border bg-card p-4">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                      <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />
-                      Ingresos
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
+                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
+                      <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span className="hidden sm:inline">Ingresos</span>
+                      <span className="sm:hidden">↑</span>
                     </div>
-                    <p className="text-lg font-semibold text-emerald-500">
+                    <p className="text-xs sm:text-base font-semibold text-emerald-500 truncate">
                       +{formatCurrency(globalTotals.income)}
                     </p>
                   </div>
-                  <div className="rounded-xl border bg-card p-4">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                      <ArrowDownCircle className="h-3.5 w-3.5 text-red-500" />
-                      Gastos
+                  <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
+                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
+                      <ArrowDownCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      <span className="hidden sm:inline">Gastos</span>
+                      <span className="sm:hidden">↓</span>
                     </div>
-                    <p className="text-lg font-semibold text-red-500">
+                    <p className="text-xs sm:text-base font-semibold text-red-500 truncate">
                       -{formatCurrency(globalTotals.expense)}
                     </p>
                   </div>
-                  <div className="rounded-xl border bg-card p-4">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                      <DollarSign className="h-3.5 w-3.5" />
-                      Balance
+                  <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
+                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
+                      <DollarSign className="h-3.5 w-3.5 shrink-0" />
+                      <span className="hidden sm:inline">Balance</span>
+                      <span className="sm:hidden">=</span>
                     </div>
                     <p
                       className={cn(
-                        "text-lg font-semibold",
+                        "text-xs sm:text-base font-semibold truncate",
                         globalTotals.balance >= 0 ? "text-emerald-500" : "text-red-500"
                       )}
                     >
@@ -767,20 +770,20 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     return (
                       <div key={monthKey} className="rounded-xl border bg-card overflow-hidden">
                         {/* Month header */}
-                        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+                        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-muted/30 flex-wrap">
                           <span className="text-sm font-semibold capitalize">
                             {formatMonthLabel(monthKey)}
                           </span>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="text-emerald-500">
+                          <div className="flex items-center flex-wrap gap-1 sm:gap-3 text-xs text-muted-foreground">
+                            <span className="text-emerald-500 whitespace-nowrap">
                               +{formatCurrency(totals.income)}
                             </span>
-                            <span className="text-red-500">
+                            <span className="text-red-500 whitespace-nowrap">
                               -{formatCurrency(totals.expense)}
                             </span>
                             <span
                               className={cn(
-                                "font-medium",
+                                "font-medium whitespace-nowrap",
                                 totals.balance >= 0 ? "text-emerald-500" : "text-red-500"
                               )}
                             >
@@ -818,10 +821,10 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                                   )}
                                 </p>
                               </div>
-                              <div className="text-right shrink-0">
+                              <div className="text-right shrink-0 max-w-[110px] sm:max-w-[160px]">
                                 <p
                                   className={cn(
-                                    "text-sm font-semibold",
+                                    "text-xs sm:text-sm font-semibold truncate",
                                     txn.category.type === "income"
                                       ? "text-emerald-500"
                                       : "text-red-500"
@@ -832,7 +835,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                                 </p>
                                 <Badge
                                   variant="secondary"
-                                  className={cn("text-xs", txn.category.color)}
+                                  className={cn("text-xs max-w-full truncate block", txn.category.color)}
                                 >
                                   {txn.category.name}
                                 </Badge>
@@ -910,7 +913,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                         </div>
                         <Badge variant="secondary">{acc.currency}</Badge>
                       </div>
-                      <p className="text-xl font-bold">
+                      <p className="text-base sm:text-xl font-bold truncate">
                         {formatCurrency(acc.balance, acc.currency)}
                       </p>
                       <div className="flex gap-2 mt-auto">
@@ -1113,7 +1116,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                         {bud.description && (
                           <p className="text-xs text-muted-foreground">{bud.description}</p>
                         )}
-                        <p className="text-xl font-bold">{formatCurrency(bud.amount)}</p>
+                        <p className="text-base sm:text-xl font-bold truncate">{formatCurrency(bud.amount)}</p>
                         <div className="flex flex-wrap gap-2 mt-auto pt-1">
                           {bud.status === "pending" && (
                             <>

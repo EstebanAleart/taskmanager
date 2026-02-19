@@ -251,12 +251,15 @@ Las secciones del workspace se manejan con `?section=X` en la URL:
 ### Finanzas
 - Seccion accesible desde el sidebar del workspace (`?section=finanzas`)
 - 4 tabs internas: Transacciones, Cuentas, Categorias, Presupuestos
-- **Cuentas**: CRUD completo (nombre, descripcion, moneda ARS/USD/EUR, balance). Cards con balance formateado
+- **Cuentas**: CRUD completo (nombre, descripcion, moneda ARS/USD/EUR, balance). Cards con balance formateado y responsive
 - **Categorias**: CRUD con tipo income/expense. Vista agrupada por tipo con iconos verde/rojo
 - **Transacciones**: CRUD vinculado a cuenta + categoria + proyecto (opcional). Lista con iconos de ingreso/gasto, fecha, monto formateado, badge de categoria
-- **Presupuestos**: CRUD basico (nombre, monto, descripcion). Cards con monto formateado
+- **Presupuestos**: CRUD basico (nombre, monto, descripcion). Cards con monto formateado y responsive
+- Filtro por mes con navegacion (anterior/siguiente) y opcion "Todos". Cards resumen de ingresos/gastos/balance del periodo
+- Presupuestos con estado (pending/approved/rejected) y accion de convertir a transaccion
 - Todas las operaciones usan Dialog de shadcn para crear/editar y Sonner toast para confirmar eliminacion
 - Requiere al menos una cuenta y una categoria para crear transacciones
+- **Responsive**: cards de resumen y montos adaptan tamaño de fuente en mobile (`text-xs sm:text-base`), valores con `truncate` para evitar overflow, cabecera de mes con `flex-wrap`
 - Componente: `components/workspace/workspace-finance.tsx`
 
 ### Eliminacion segura
