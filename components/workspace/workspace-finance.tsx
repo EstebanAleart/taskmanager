@@ -17,6 +17,8 @@ import {
   ChevronRight,
   TrendingUp,
   ArrowLeftRight,
+  Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,6 +134,12 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
   // Month filter: null = all, string = "YYYY-MM"
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
+  // Transaction filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterAccountId, setFilterAccountId] = useState("");
+  const [filterType, setFilterType] = useState<"" | "income" | "expense">("");
+  const [filterCategoryId, setFilterCategoryId] = useState("");
+
   const base = `/api/workspaces/${workspaceId}`;
 
   // ─── Helper functions — defined BEFORE first use ────
@@ -154,6 +162,22 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
       .filter((t) => t.category.type === "expense")
       .reduce((s, t) => s + Math.abs(t.amount), 0);
     return { income, expense, balance: income - expense };
+  };
+
+  const getTotalsByCurrency = (txns: Transaction[]) => {
+    const map: Record<string, { income: number; expense: number }> = {};
+    for (const t of txns) {
+      const cur = t.account.currency;
+      if (!map[cur]) map[cur] = { income: 0, expense: 0 };
+      if (t.category.type === "income") map[cur].income += Math.abs(t.amount);
+      else map[cur].expense += Math.abs(t.amount);
+    }
+    return Object.entries(map).map(([currency, { income, expense }]) => ({
+      currency,
+      income,
+      expense,
+      balance: income - expense,
+    }));
   };
 
   const formatCurrency = (amount: number, currency = "ARS") =>
@@ -307,17 +331,42 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     b.localeCompare(a)
   );
 
-  const filteredTransactions = selectedMonth
-    ? transactions.filter((t) => getMonthKey(t.date) === selectedMonth)
-    : transactions;
+  const filteredTransactions = transactions
+    .filter((t) => !selectedMonth || getMonthKey(t.date) === selectedMonth)
+    .filter((t) => !filterAccountId || t.account.id === filterAccountId)
+    .filter((t) => !filterType || t.category.type === filterType)
+    .filter((t) => !filterCategoryId || t.category.id === filterCategoryId)
+    .filter((t) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        t.description.toLowerCase().includes(q) ||
+        t.category.name.toLowerCase().includes(q) ||
+        t.account.name.toLowerCase().includes(q)
+      );
+    });
 
   const filteredByMonth = selectedMonth
     ? { [selectedMonth]: filteredTransactions }
-    : transactionsByMonth;
+    : filteredTransactions.reduce<Record<string, Transaction[]>>((acc, txn) => {
+        const key = getMonthKey(txn.date);
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(txn);
+        return acc;
+      }, {});
 
-  const filteredSortedMonths = selectedMonth ? [selectedMonth] : sortedMonths;
+  const filteredSortedMonths = Object.keys(filteredByMonth).sort((a, b) => b.localeCompare(a));
 
-  const globalTotals = getMonthTotals(filteredTransactions);
+  const currencyTotals = getTotalsByCurrency(filteredTransactions);
+
+  const hasActiveFilters = !!(searchQuery || filterAccountId || filterType || filterCategoryId);
+
+  function clearFilters() {
+    setSearchQuery("");
+    setFilterAccountId("");
+    setFilterType("");
+    setFilterCategoryId("");
+  }
 
   // ─── Account form ───────────────────────────────────
   function AccountForm() {
@@ -904,45 +953,182 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                 </Button>
               </div>
 
-              {/* Summary cards */}
-              {filteredTransactions.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
-                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
-                      <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                      <span className="hidden sm:inline">Ingresos</span>
-                      <span className="sm:hidden">↑</span>
-                    </div>
-                    <p className="text-xs sm:text-base font-semibold text-emerald-500 truncate">
-                      +{formatCurrency(globalTotals.income)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
-                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
-                      <ArrowDownCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                      <span className="hidden sm:inline">Gastos</span>
-                      <span className="sm:hidden">↓</span>
-                    </div>
-                    <p className="text-xs sm:text-base font-semibold text-red-500 truncate">
-                      -{formatCurrency(globalTotals.expense)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
-                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
-                      <DollarSign className="h-3.5 w-3.5 shrink-0" />
-                      <span className="hidden sm:inline">Balance</span>
-                      <span className="sm:hidden">=</span>
-                    </div>
-                    <p
-                      className={cn(
-                        "text-xs sm:text-base font-semibold truncate",
-                        globalTotals.balance >= 0 ? "text-emerald-500" : "text-red-500"
-                      )}
+              {/* Search + filters */}
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="Buscar por descripción, categoría o cuenta..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {formatCurrency(globalTotals.balance)}
-                    </p>
-                  </div>
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {/* Type filter */}
+                  <div className="flex rounded-lg border overflow-hidden">
+                    {(
+                      [
+                        { v: "", label: "Todos" },
+                        { v: "income", label: "Ingresos" },
+                        { v: "expense", label: "Gastos" },
+                      ] as const
+                    ).map(({ v, label }) => (
+                      <button
+                        key={v}
+                        onClick={() => setFilterType(v)}
+                        className={cn(
+                          "px-3 py-1.5 text-xs font-medium transition-colors",
+                          filterType === v
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Account filter */}
+                  {accounts.length > 1 && (
+                    <Select
+                      value={filterAccountId || "__all__"}
+                      onValueChange={(v) => setFilterAccountId(v === "__all__" ? "" : v)}
+                    >
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[130px]">
+                        <SelectValue placeholder="Todas las cuentas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">Todas las cuentas</SelectItem>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} ({a.currency})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* Category filter */}
+                  {userCategories.length > 1 && (
+                    <Select
+                      value={filterCategoryId || "__all__"}
+                      onValueChange={(v) => setFilterCategoryId(v === "__all__" ? "" : v)}
+                    >
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[130px]">
+                        <SelectValue placeholder="Todas las categorías" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">Todas las categorías</SelectItem>
+                        {userCategories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.type === "income" ? "↑" : "↓"} {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* Clear all filters */}
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-muted-foreground gap-1"
+                      onClick={clearFilters}
+                    >
+                      <X className="h-3 w-3" />
+                      Limpiar filtros
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Multi-currency summary */}
+              {filteredTransactions.length > 0 && (
+                currencyTotals.length === 1 ? (
+                  /* Single currency — 3 cards */
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
+                      <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
+                        <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        <span className="hidden sm:inline">Ingresos</span>
+                        <span className="sm:hidden">↑</span>
+                      </div>
+                      <p className="text-xs sm:text-base font-semibold text-emerald-500 truncate">
+                        +{formatCurrency(currencyTotals[0].income, currencyTotals[0].currency)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
+                      <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
+                        <ArrowDownCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                        <span className="hidden sm:inline">Gastos</span>
+                        <span className="sm:hidden">↓</span>
+                      </div>
+                      <p className="text-xs sm:text-base font-semibold text-red-500 truncate">
+                        -{formatCurrency(currencyTotals[0].expense, currencyTotals[0].currency)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border bg-card p-2 sm:p-4 overflow-hidden">
+                      <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground mb-1">
+                        <DollarSign className="h-3.5 w-3.5 shrink-0" />
+                        <span className="hidden sm:inline">Balance</span>
+                        <span className="sm:hidden">=</span>
+                      </div>
+                      <p
+                        className={cn(
+                          "text-xs sm:text-base font-semibold truncate",
+                          currencyTotals[0].balance >= 0 ? "text-emerald-500" : "text-red-500"
+                        )}
+                      >
+                        {formatCurrency(currencyTotals[0].balance, currencyTotals[0].currency)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Multiple currencies — table */
+                  <div className="rounded-xl border bg-card overflow-hidden">
+                    <div className="grid grid-cols-4 gap-px bg-border text-xs font-medium text-muted-foreground">
+                      <div className="bg-card px-3 py-2">Moneda</div>
+                      <div className="bg-card px-3 py-2 text-right text-emerald-500">Ingresos</div>
+                      <div className="bg-card px-3 py-2 text-right text-red-500">Gastos</div>
+                      <div className="bg-card px-3 py-2 text-right">Balance</div>
+                    </div>
+                    <div className="divide-y">
+                      {currencyTotals.map(({ currency, income, expense, balance }) => (
+                        <div key={currency} className="grid grid-cols-4 gap-px text-xs">
+                          <div className="px-3 py-2.5 flex items-center">
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              {currency}
+                            </Badge>
+                          </div>
+                          <div className="px-3 py-2.5 text-right font-semibold text-emerald-500 truncate">
+                            +{formatCurrency(income, currency)}
+                          </div>
+                          <div className="px-3 py-2.5 text-right font-semibold text-red-500 truncate">
+                            -{formatCurrency(expense, currency)}
+                          </div>
+                          <div
+                            className={cn(
+                              "px-3 py-2.5 text-right font-semibold truncate",
+                              balance >= 0 ? "text-emerald-500" : "text-red-500"
+                            )}
+                          >
+                            {formatCurrency(balance, currency)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
               )}
 
               {accounts.length === 0 || userCategories.length === 0 ? (
@@ -960,7 +1146,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                 <div className="flex flex-col gap-4">
                   {filteredSortedMonths.map((monthKey) => {
                     const monthTxns = filteredByMonth[monthKey];
-                    const totals = getMonthTotals(monthTxns);
+                    const monthCurrencyTotals = getTotalsByCurrency(monthTxns);
                     return (
                       <div key={monthKey} className="rounded-xl border bg-card overflow-hidden">
                         {/* Month header */}
@@ -968,21 +1154,28 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                           <span className="text-sm font-semibold capitalize">
                             {formatMonthLabel(monthKey)}
                           </span>
-                          <div className="flex items-center flex-wrap gap-1 sm:gap-3 text-xs text-muted-foreground">
-                            <span className="text-emerald-500 whitespace-nowrap">
-                              +{formatCurrency(totals.income)}
-                            </span>
-                            <span className="text-red-500 whitespace-nowrap">
-                              -{formatCurrency(totals.expense)}
-                            </span>
-                            <span
-                              className={cn(
-                                "font-medium whitespace-nowrap",
-                                totals.balance >= 0 ? "text-emerald-500" : "text-red-500"
-                              )}
-                            >
-                              = {formatCurrency(totals.balance)}
-                            </span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            {monthCurrencyTotals.map(({ currency, income, expense, balance }) => (
+                              <div key={currency} className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
+                                {monthCurrencyTotals.length > 1 && (
+                                  <span className="font-mono text-[10px] bg-muted px-1 rounded">{currency}</span>
+                                )}
+                                <span className="text-emerald-500 whitespace-nowrap">
+                                  +{formatCurrency(income, currency)}
+                                </span>
+                                <span className="text-red-500 whitespace-nowrap">
+                                  -{formatCurrency(expense, currency)}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "font-medium whitespace-nowrap",
+                                    balance >= 0 ? "text-emerald-500" : "text-red-500"
+                                  )}
+                                >
+                                  = {formatCurrency(balance, currency)}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
 
