@@ -2,82 +2,115 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
+const RESERVED_NAMES = ["Transferencia (entrada)", "Transferencia (salida)"];
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string; categoryId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const { workspaceId, categoryId } = await params;
-
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
-  }
-
-  const category = await prisma.transactionCategory.findFirst({
-    where: { id: categoryId, workspaceId },
-  });
-  if (!category) {
-    return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
-  }
-
-  const body = await request.json();
-  const { name, type, color } = body;
-
-  const data: Record<string, unknown> = {};
-  if (name !== undefined) data.name = name.trim();
-  if (type !== undefined) {
-    if (!["income", "expense"].includes(type)) {
-      return NextResponse.json({ error: "El tipo debe ser 'income' o 'expense'." }, { status: 400 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    data.type = type;
+
+    const { workspaceId, categoryId } = await params;
+
+    const membership = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
+    });
+    if (!membership) {
+      return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
+    }
+
+    const category = await prisma.transactionCategory.findFirst({
+      where: { id: categoryId, workspaceId },
+    });
+    if (!category) {
+      return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    }
+
+    if (RESERVED_NAMES.includes(category.name)) {
+      return NextResponse.json(
+        { error: "Las categorías de sistema no se pueden editar." },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { name, type, color } = body;
+
+    if (name !== undefined && RESERVED_NAMES.includes(name.trim())) {
+      return NextResponse.json(
+        { error: "Ese nombre está reservado para transferencias del sistema." },
+        { status: 400 }
+      );
+    }
+
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data.name = name.trim();
+    if (type !== undefined) {
+      if (!["income", "expense"].includes(type)) {
+        return NextResponse.json({ error: "El tipo debe ser 'income' o 'expense'." }, { status: 400 });
+      }
+      data.type = type;
+    }
+    if (color !== undefined) data.color = color.trim();
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "No hay campos para actualizar." }, { status: 400 });
+    }
+
+    const updated = await prisma.transactionCategory.update({
+      where: { id: categoryId },
+      data,
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("[PATCH /categories/:id]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
-  if (color !== undefined) data.color = color.trim();
-
-  if (Object.keys(data).length === 0) {
-    return NextResponse.json({ error: "No hay campos para actualizar." }, { status: 400 });
-  }
-
-  const updated = await prisma.transactionCategory.update({
-    where: { id: categoryId },
-    data,
-  });
-
-  return NextResponse.json(updated);
 }
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string; categoryId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { workspaceId, categoryId } = await params;
+
+    const membership = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
+    });
+    if (!membership) {
+      return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
+    }
+
+    const category = await prisma.transactionCategory.findFirst({
+      where: { id: categoryId, workspaceId },
+    });
+    if (!category) {
+      return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    }
+
+    if (RESERVED_NAMES.includes(category.name)) {
+      return NextResponse.json(
+        { error: "Las categorías de sistema no se pueden eliminar." },
+        { status: 403 }
+      );
+    }
+
+    await prisma.transactionCategory.delete({ where: { id: categoryId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[DELETE /categories/:id]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
-
-  const { workspaceId, categoryId } = await params;
-
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
-  }
-
-  const category = await prisma.transactionCategory.findFirst({
-    where: { id: categoryId, workspaceId },
-  });
-  if (!category) {
-    return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
-  }
-
-  await prisma.transactionCategory.delete({ where: { id: categoryId } });
-
-  return NextResponse.json({ success: true });
 }

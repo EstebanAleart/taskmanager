@@ -6,79 +6,89 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string; budgetId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const { workspaceId, budgetId } = await params;
-
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
-  }
-
-  const budget = await prisma.budget.findFirst({
-    where: { id: budgetId, workspaceId },
-  });
-  if (!budget) {
-    return NextResponse.json({ error: "Presupuesto no encontrado" }, { status: 404 });
-  }
-
-  const body = await request.json();
-  const { name, amount, description, status } = body;
-
-  const data: Record<string, unknown> = {};
-  if (name !== undefined) data.name = name.trim();
-  if (amount !== undefined) data.amount = amount;
-  if (description !== undefined) data.description = description.trim();
-  if (status !== undefined) {
-    if (!["pending", "approved", "rejected"].includes(status)) {
-      return NextResponse.json({ error: "Estado inválido." }, { status: 400 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    data.status = status;
+
+    const { workspaceId, budgetId } = await params;
+
+    const membership = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
+    });
+    if (!membership) {
+      return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
+    }
+
+    const budget = await prisma.budget.findFirst({
+      where: { id: budgetId, workspaceId },
+    });
+    if (!budget) {
+      return NextResponse.json({ error: "Presupuesto no encontrado" }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const { name, amount, description, status } = body;
+
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data.name = name.trim();
+    if (amount !== undefined) data.amount = amount;
+    if (description !== undefined) data.description = description.trim();
+    if (status !== undefined) {
+      if (!["pending", "approved", "rejected"].includes(status)) {
+        return NextResponse.json({ error: "Estado inválido." }, { status: 400 });
+      }
+      data.status = status;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "No hay campos para actualizar." }, { status: 400 });
+    }
+
+    const updated = await prisma.budget.update({
+      where: { id: budgetId },
+      data,
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("[PATCH /budgets/:id]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
-
-  if (Object.keys(data).length === 0) {
-    return NextResponse.json({ error: "No hay campos para actualizar." }, { status: 400 });
-  }
-
-  const updated = await prisma.budget.update({
-    where: { id: budgetId },
-    data,
-  });
-
-  return NextResponse.json(updated);
 }
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string; budgetId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { workspaceId, budgetId } = await params;
+
+    const membership = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
+    });
+    if (!membership) {
+      return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
+    }
+
+    const budget = await prisma.budget.findFirst({
+      where: { id: budgetId, workspaceId },
+    });
+    if (!budget) {
+      return NextResponse.json({ error: "Presupuesto no encontrado" }, { status: 404 });
+    }
+
+    await prisma.budget.delete({ where: { id: budgetId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[DELETE /budgets/:id]", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
-
-  const { workspaceId, budgetId } = await params;
-
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: session.user.id } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
-  }
-
-  const budget = await prisma.budget.findFirst({
-    where: { id: budgetId, workspaceId },
-  });
-  if (!budget) {
-    return NextResponse.json({ error: "Presupuesto no encontrado" }, { status: 404 });
-  }
-
-  await prisma.budget.delete({ where: { id: budgetId } });
-
-  return NextResponse.json({ success: true });
 }
