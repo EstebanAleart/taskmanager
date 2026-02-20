@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
+const RESERVED_NAMES = ["Transferencia (entrada)", "Transferencia (salida)"];
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string; categoryId: string }> }
@@ -28,8 +30,22 @@ export async function PATCH(
       return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
     }
 
+    if (RESERVED_NAMES.includes(category.name)) {
+      return NextResponse.json(
+        { error: "Las categorías de sistema no se pueden editar." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { name, type, color } = body;
+
+    if (name !== undefined && RESERVED_NAMES.includes(name.trim())) {
+      return NextResponse.json(
+        { error: "Ese nombre está reservado para transferencias del sistema." },
+        { status: 400 }
+      );
+    }
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name.trim();
@@ -81,6 +97,13 @@ export async function DELETE(
     });
     if (!category) {
       return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    }
+
+    if (RESERVED_NAMES.includes(category.name)) {
+      return NextResponse.json(
+        { error: "Las categorías de sistema no se pueden eliminar." },
+        { status: 403 }
+      );
     }
 
     await prisma.transactionCategory.delete({ where: { id: categoryId } });

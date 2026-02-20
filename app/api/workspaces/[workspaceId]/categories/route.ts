@@ -62,6 +62,14 @@ export async function POST(
       return NextResponse.json({ error: "El tipo debe ser 'income' o 'expense'." }, { status: 400 });
     }
 
+    const RESERVED = ["Transferencia (entrada)", "Transferencia (salida)"];
+    if (RESERVED.includes(name.trim())) {
+      return NextResponse.json(
+        { error: "Ese nombre está reservado para transferencias del sistema." },
+        { status: 400 }
+      );
+    }
+
     const category = await prisma.transactionCategory.create({
       data: {
         name: name.trim(),

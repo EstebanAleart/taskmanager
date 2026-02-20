@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-// Obtiene o crea la categoría de sistema "Transferencia" para el workspace
+// Obtiene o crea la categoría de sistema para transferencias.
+// Se usan nombres distintos por tipo para respetar el unique(workspaceId, name).
+const TRANSFER_CAT_NAMES: Record<"income" | "expense", string> = {
+  income: "Transferencia (entrada)",
+  expense: "Transferencia (salida)",
+};
+
 async function getOrCreateTransferCategory(workspaceId: string, type: "income" | "expense") {
+  const name = TRANSFER_CAT_NAMES[type];
   const existing = await prisma.transactionCategory.findFirst({
-    where: { workspaceId, name: "Transferencia", type },
+    where: { workspaceId, name },
   });
   if (existing) return existing;
   return prisma.transactionCategory.create({
     data: {
-      name: "Transferencia",
+      name,
       type,
       color: "text-blue-500",
       workspaceId,

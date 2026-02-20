@@ -72,6 +72,9 @@ interface Budget {
   status: "pending" | "approved" | "rejected";
 }
 
+// Categorías reservadas para transferencias del sistema (no editables por el usuario)
+const SYSTEM_CATEGORY_NAMES = ["Transferencia (entrada)", "Transferencia (salida)"];
+
 // ─── Tabs ────────────────────────────────────────────────
 const FINANCE_TABS = [
   { id: "transacciones", label: "Transacciones", icon: DollarSign },
@@ -254,7 +257,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
   }
 
   async function handleBudgetToTransaction(budget: Budget) {
-    if (accounts.length === 0 || categories.length === 0) {
+    if (accounts.length === 0 || userCategories.length === 0) {
       toast.error("Necesitas al menos una cuenta y una categoría");
       return;
     }
@@ -264,7 +267,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
       date: new Date().toISOString(),
       account: { id: accounts[0].id },
       category: {
-        id: categories.find((c) => c.type === "expense")?.id || categories[0].id,
+        id: userCategories.find((c) => c.type === "expense")?.id || userCategories[0].id,
       },
     } as unknown as Record<string, unknown>);
     setTransactionDialog(true);
@@ -283,6 +286,11 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
       `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}`
     );
   };
+
+  // Categorías visibles para el usuario (excluye las de sistema)
+  const userCategories = categories.filter(
+    (c) => !SYSTEM_CATEGORY_NAMES.includes(c.name)
+  );
 
   // ─── Derived data ───────────────────────────────────
   const transactionsByMonth = transactions.reduce<Record<string, Transaction[]>>(
@@ -580,7 +588,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
               <SelectValue placeholder="Seleccionar categoría" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((c) => (
+              {userCategories.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.type === "income" ? "↑" : "↓"} {c.name}
                 </SelectItem>
@@ -889,7 +897,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     setEditingItem(null);
                     setTransactionDialog(true);
                   }}
-                  disabled={accounts.length === 0 || categories.length === 0}
+                  disabled={accounts.length === 0 || userCategories.length === 0}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Nueva transacción
@@ -937,7 +945,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                 </div>
               )}
 
-              {accounts.length === 0 || categories.length === 0 ? (
+              {accounts.length === 0 || userCategories.length === 0 ? (
                 <div className="rounded-xl border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
                   Primero crea al menos una cuenta y una categoría para registrar transacciones.
                 </div>
@@ -948,6 +956,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     : "No hay transacciones todavía."}
                 </div>
               ) : (
+
                 <div className="flex flex-col gap-4">
                   {filteredSortedMonths.map((monthKey) => {
                     const monthTxns = filteredByMonth[monthKey];
@@ -1328,7 +1337,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {categories.length} categoría{categories.length !== 1 ? "s" : ""}
+                  {userCategories.length} categoría{userCategories.length !== 1 ? "s" : ""}
                 </p>
                 <Button
                   size="sm"
@@ -1342,21 +1351,21 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                 </Button>
               </div>
 
-              {categories.length === 0 ? (
+              {userCategories.length === 0 ? (
                 <div className="rounded-xl border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
                   No hay categorías todavía.
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
                   {/* Ingresos */}
-                  {categories.filter((c) => c.type === "income").length > 0 && (
+                  {userCategories.filter((c) => c.type === "income").length > 0 && (
                     <div className="rounded-xl border bg-card overflow-hidden">
                       <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-emerald-500/5">
                         <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
                         <span className="text-sm font-semibold text-emerald-500">Ingresos</span>
                       </div>
                       <div className="divide-y">
-                        {categories.filter((c) => c.type === "income").map((cat) => (
+                        {userCategories.filter((c) => c.type === "income").map((cat) => (
                           <div
                             key={cat.id}
                             className="flex items-center justify-between px-4 py-2.5"
@@ -1394,14 +1403,14 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                   )}
 
                   {/* Gastos */}
-                  {categories.filter((c) => c.type === "expense").length > 0 && (
+                  {userCategories.filter((c) => c.type === "expense").length > 0 && (
                     <div className="rounded-xl border bg-card overflow-hidden">
                       <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-red-500/5">
                         <ArrowDownCircle className="h-4 w-4 text-red-500" />
                         <span className="text-sm font-semibold text-red-500">Gastos</span>
                       </div>
                       <div className="divide-y">
-                        {categories.filter((c) => c.type === "expense").map((cat) => (
+                        {userCategories.filter((c) => c.type === "expense").map((cat) => (
                           <div
                             key={cat.id}
                             className="flex items-center justify-between px-4 py-2.5"
@@ -1519,7 +1528,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                           )}
                           {bud.status === "approved" &&
                             accounts.length > 0 &&
-                            categories.length > 0 && (
+                            userCategories.length > 0 && (
                               <Button
                                 variant="outline"
                                 size="sm"
