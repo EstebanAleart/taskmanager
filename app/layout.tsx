@@ -1,5 +1,6 @@
 import React from "react"
 import { SessionProvider } from "@/components/session-provider";
+import { ReduxProvider } from "@/components/providers/redux-provider";
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 
@@ -32,10 +33,12 @@ export default function RootLayout({
       <body
         className={`${_inter.variable} ${_spaceGrotesk.variable} font-sans antialiased`}
       >
-        <SessionProvider>
-          {children}
-          <Toaster />
-        </SessionProvider>
+        <ReduxProvider>
+          <SessionProvider>
+            {children}
+            <Toaster />
+          </SessionProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

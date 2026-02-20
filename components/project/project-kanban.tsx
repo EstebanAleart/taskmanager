@@ -2,6 +2,13 @@
 
 import React from "react";
 import { useState, useCallback, useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import {
+  hydrateTaskData,
+  moveTask, deleteTask,
+  createColumn, deleteColumn, renameColumn,
+  selectTasks, selectColumns,
+} from "@/lib/store/slices/task.slice";
 import {
   Plus,
   Circle,
@@ -31,7 +38,6 @@ import {
 import { ProjectCreateTaskDialog } from "@/components/project/project-create-task-dialog";
 import { TaskDetailDialog } from "@/components/project/task-detail-dialog";
 import { AddColumnDialog } from "@/components/add-column-dialog";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +105,9 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 export function ProjectKanban({ tasks, columns, priorities, users, projectId }: ProjectKanbanProps) {
-  const [localTasks, setLocalTasks] = useState<TaskItem[]>(tasks);
+  const dispatch = useAppDispatch();
+  const localTasks = useAppSelector(selectTasks) as TaskItem[];
+  const localColumns = useAppSelector(selectColumns);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDefaultColumnId, setCreateDefaultColumnId] = useState<string | undefined>();
@@ -107,12 +115,11 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [detailTask, setDetailTask] = useState<TaskItem | null>(null);
-  const router = useRouter();
-
-  // Sync local state when server props change
+  // Hydrate Redux store from server-side props
   useEffect(() => {
-    setLocalTasks(tasks);
-  }, [tasks]);
+    dispatch(hydrateTaskData({ projectId, tasks: tasks as never[], columns }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   const handleDragOver = useCallback((e: React.DragEvent, columnId: string) => {
     e.preventDefault();
@@ -126,35 +133,15 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
 
   const moveTaskOptimistic = useCallback(
     (taskId: string, targetColumnId: string) => {
-      // Find the task's current column to support rollback
-      const prevTasks = localTasks;
-      const task = prevTasks.find((t) => t.id === taskId);
+      const task = localTasks.find((t) => t.id === taskId);
       if (!task || task.columnId === targetColumnId) return;
-
-      // Optimistic: move instantly in UI
-      setLocalTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, columnId: targetColumnId } : t))
-      );
-
-      // API call in background
-      fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ columnId: targetColumnId }),
-      }).then((res) => {
-        if (!res.ok) {
-          // Rollback on failure
-          setLocalTasks(prevTasks);
+      dispatch(moveTask({ id: taskId, columnId: targetColumnId })).then((result) => {
+        if (moveTask.rejected.match(result)) {
           toast.error("Error al mover la tarea");
-        } else {
-          router.refresh();
         }
-      }).catch(() => {
-        setLocalTasks(prevTasks);
-        toast.error("Error de conexion");
       });
     },
-    [localTasks, router]
+    [dispatch, localTasks]
   );
 
   const handleDrop = useCallback(
@@ -178,26 +165,16 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
 
   const handleDeleteTask = useCallback(
     (taskId: string) => {
-      const prevTasks = localTasks;
-
-      // Optimistic: remove from UI instantly
-      setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
       setDetailTask(null);
-
-      fetch(`/api/tasks/${taskId}`, { method: "DELETE" }).then((res) => {
-        if (res.ok) {
+      dispatch(deleteTask(taskId)).then((result) => {
+        if (deleteTask.fulfilled.match(result)) {
           toast.success("Tarea eliminada");
-          router.refresh();
         } else {
-          setLocalTasks(prevTasks);
           toast.error("Error al eliminar la tarea");
         }
-      }).catch(() => {
-        setLocalTasks(prevTasks);
-        toast.error("Error de conexion");
       });
     },
-    [localTasks, router]
+    [dispatch]
   );
 
   const handleAddTask = (columnId: string) => {
@@ -206,24 +183,27 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
   };
 
   const handleAddColumn = async (column: { id: string; label: string; color: string; icon: string }) => {
-    await fetch(`/api/projects/${projectId}/columns`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: column.label.toLowerCase().replace(/\s+/g, "_"),
-        label: column.label,
-        color: column.color,
-        icon: column.icon,
-      }),
+    dispatch(createColumn({
+      projectId,
+      name: column.label.toLowerCase().replace(/\s+/g, "_"),
+      label: column.label,
+      color: column.color,
+      icon: column.icon,
+    })).then((result) => {
+      if (createColumn.rejected.match(result)) {
+        toast.error("Error al crear columna");
+      }
     });
-    router.refresh();
   };
 
   const handleDeleteColumn = async (columnId: string) => {
-    const firstCol = columns.find((c) => c.id !== columnId);
+    const firstCol = localColumns.find((c) => c.id !== columnId);
     if (!firstCol) return;
-    await fetch(`/api/columns/${columnId}?moveTo=${firstCol.id}`, { method: "DELETE" });
-    router.refresh();
+    dispatch(deleteColumn({ id: columnId, moveTasksToColumnId: firstCol.id })).then((result) => {
+      if (deleteColumn.rejected.match(result)) {
+        toast.error("Error al eliminar columna");
+      }
+    });
   };
 
   const startRenaming = (columnId: string, currentLabel: string) => {
@@ -233,12 +213,11 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
 
   const finishRenaming = async (columnId: string) => {
     if (editLabel.trim()) {
-      await fetch(`/api/columns/${columnId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: editLabel.trim() }),
+      dispatch(renameColumn({ id: columnId, label: editLabel.trim() })).then((result) => {
+        if (renameColumn.rejected.match(result)) {
+          toast.error("Error al renombrar columna");
+        }
       });
-      router.refresh();
     }
     setEditingColumn(null);
     setEditLabel("");
@@ -250,7 +229,7 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
   return (
     <>
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((column) => {
+        {localColumns.map((column) => {
           const columnTasks = localTasks.filter((t) => t.columnId === column.id);
           const Icon = ICON_MAP[column.icon] || Circle;
           const isDefaultColumn = defaultColumnNames.includes(column.name);
@@ -524,7 +503,7 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
         open={createOpen}
         onOpenChange={setCreateOpen}
         projectId={projectId}
-        columns={columns}
+        columns={localColumns as never[]}
         priorities={priorities}
         users={users}
         defaultColumnId={createDefaultColumnId}
@@ -541,7 +520,7 @@ export function ProjectKanban({ tasks, columns, priorities, users, projectId }: 
           open={!!detailTask}
           onOpenChange={(open) => { if (!open) setDetailTask(null); }}
           task={detailTask}
-          columns={columns}
+          columns={localColumns as never[]}
           priorities={priorities}
           users={users}
           onDelete={handleDeleteTask}

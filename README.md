@@ -11,14 +11,96 @@ Sistema de gestion de tareas y proyectos para equipos de trabajo. Organiza works
 - **Autenticación:** Auth0 via NextAuth v5
 - **UI:** shadcn/ui, Tailwind CSS, Lucide Icons
 - **Notificaciones:** Sonner (toasts)
+- **Estado global:** Redux Toolkit + react-redux (optimistic updates en toda la app)
 - **Gestión de dependencias:** pnpm
 - **Validación:** Zod
-- **Testing:** Vitest, Testing Library
 - **Linting:** ESLint, Prettier
 - **Diagrama ER:** Mermaid.js
-- **Gestión de archivos:** FileType, File, subida a storage
-- **Finanzas:** Módulo de cuentas, transacciones, presupuestos
-- **Otros:** React Query, Zustand, React Hook Form, clsx, date-fns, superjson, etc.
+- **Finanzas:** Módulo de cuentas, transacciones, presupuestos, transferencias
+- **Otros:** clsx, date-fns, Recharts
+
+---
+
+## Estado Global — Redux Toolkit + Optimistic Updates
+
+### Por qué Redux Toolkit
+
+Toda la aplicación usa **Redux Toolkit (RTK)** como capa de estado global. El objetivo principal es que **todas las operaciones (crear, editar, eliminar) se sientan instantáneas** para el usuario, incluso si el servidor tarda en responder.
+
+### Política de Optimistic Updates
+
+Cuando el usuario dispara una acción (p. ej. eliminar una cuenta, mover una tarea), la UI se actualiza **de inmediato** — sin esperar al servidor. Si la petición falla, el estado se **revierte automáticamente** al snapshot anterior. El usuario percibe fluidez total y solo ve un error toast si algo salió realmente mal.
+
+```
+Usuario hace clic → UI cambia al instante (optimistic)
+                        ↓
+                   API call en background
+                   ┌─────────┴────────────┐
+              fulfilled              rejected
+           (confirma estado)    (revierte al snapshot)
+                                  + toast error
+```
+
+### Estructura del Store
+
+```
+lib/store/
+├── store.ts          — configureStore con todos los reducers
+├── hooks.ts          — useAppDispatch + useAppSelector tipados
+└── slices/
+    ├── finance.slice.ts    — cuentas, categorías, transacciones, presupuestos
+    ├── workspace.slice.ts  — miembros, usuarios disponibles
+    ├── project.slice.ts    — proyectos, links, notas
+    └── task.slice.ts       — tareas, columnas (kanban)
+```
+
+### Patrón por tipo de operación
+
+| Operación | `pending` | `fulfilled` | `rejected` |
+|-----------|-----------|-------------|------------|
+| **Create** | Agrega item temporal con ID `__temp__{requestId}` | Reemplaza temp con item real del servidor | Elimina el item temporal |
+| **Update** | Guarda snapshot en `_rollback`, aplica cambios | Reemplaza con respuesta del servidor | Restaura desde `_rollback` |
+| **Delete** | Guarda snapshot en `_rollback`, elimina item | Limpia `_rollback` | Restaura desde `_rollback` |
+
+### Snapshot de rollback
+
+El mapa `_rollback` en cada slice almacena snapshots del array afectado, indexados por `action.meta.requestId` (único por cada thunk en vuelo). Esto permite **múltiples operaciones concurrentes** sin interferir entre sí — cada una tiene su propio snapshot y puede revertir de forma independiente.
+
+```ts
+// Ejemplo en finance.slice.ts — deleteAccount
+.addCase(deleteAccount.pending, (state, action) => {
+  state._rollback[action.meta.requestId] = {
+    accounts: state.accounts.map(a => ({ ...a })), // snapshot
+  };
+  state.accounts = state.accounts.filter(a => a.id !== action.meta.arg.id); // optimistic
+})
+.addCase(deleteAccount.rejected, (state, action) => {
+  const rb = state._rollback[action.meta.requestId];
+  if (rb?.accounts) state.accounts = rb.accounts; // rollback
+  delete state._rollback[action.meta.requestId];
+})
+```
+
+### Componentes migrados
+
+| Componente | Slice(s) usados | Operaciones |
+|------------|-----------------|-------------|
+| `workspace-finance.tsx` | `finance` | Cuentas, categorías, transacciones, presupuestos, transferencias |
+| `workspace-members.tsx` | `workspace` | Agregar/quitar miembros, lista de usuarios disponibles |
+| `workspace-projects.tsx` | `project` | Eliminar proyecto |
+| `project-kanban.tsx` | `task` | Mover tareas (drag/drop), eliminar tareas, gestionar columnas |
+
+### Hydration desde Server Components
+
+Para aprovechar SSR sin un round-trip extra al cliente, los componentes que reciben datos del servidor como props los **hidratan en Redux** al montar:
+
+```ts
+useEffect(() => {
+  dispatch(hydrateTaskData({ projectId, tasks, columns }));
+}, [projectId]);
+```
+
+Esto permite que la página cargue con datos inmediatos (desde el servidor) y que Redux quede listo para manejar mutaciones optimistas sin loader inicial.
 
 ---
 

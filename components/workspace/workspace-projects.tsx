@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAppDispatch } from "@/lib/store/hooks";
+import { deleteProject } from "@/lib/store/slices/project.slice";
 
 interface DepartmentBadge {
   name: string;
@@ -38,6 +40,7 @@ interface WorkspaceProjectsProps {
 }
 
 export function WorkspaceProjects({ workspaceId, projects, departments }: WorkspaceProjectsProps) {
+  const dispatch = useAppDispatch();
   const [createOpen, setCreateOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
@@ -49,18 +52,13 @@ export function WorkspaceProjects({ workspaceId, projects, departments }: Worksp
         label: "Eliminar",
         onClick: async () => {
           setDeletingId(id);
-          try {
-            const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
-            if (res.ok) {
-              toast.success("Proyecto eliminado");
-              router.refresh();
-            } else {
-              toast.error("Error al eliminar el proyecto");
-            }
-          } catch {
+          const result = await dispatch(deleteProject(id));
+          setDeletingId(null);
+          if (deleteProject.fulfilled.match(result)) {
+            toast.success("Proyecto eliminado");
+            router.refresh();
+          } else {
             toast.error("Error al eliminar el proyecto");
-          } finally {
-            setDeletingId(null);
           }
         },
       },

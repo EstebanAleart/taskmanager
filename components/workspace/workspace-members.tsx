@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Users, Plus, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,68 +12,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-interface Member {
-  userId: string;
-  role: string;
-  user: {
-    id: string;
-    name: string;
-    initials: string;
-    role: string;
-    department: { name: string; label: string; color: string; bgColor: string };
-  };
-}
-
-interface AvailableUser {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-  department: { name: string; label: string; color: string; bgColor: string };
-}
+import { toast } from "sonner";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import {
+  hydrateWorkspaceData,
+  loadWorkspaceData,
+  addMember,
+  removeMember,
+  selectWorkspaceMembers,
+  selectAvailableUsers,
+  selectWorkspaceStatus,
+  type WorkspaceMember,
+} from "@/lib/store/slices/workspace.slice";
 
 interface WorkspaceMembersProps {
   workspaceId: string;
-  members: Member[];
+  members: WorkspaceMember[];
 }
 
-export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps) {
-  const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([]);
+export function WorkspaceMembers({ workspaceId, members: serverMembers }: WorkspaceMembersProps) {
+  const dispatch = useAppDispatch();
+  const members = useAppSelector(selectWorkspaceMembers);
+  const availableUsers = useAppSelector(selectAvailableUsers);
+  const status = useAppSelector(selectWorkspaceStatus);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
+  // Hydrate Redux from server props on mount, then load available users
   useEffect(() => {
-    fetch(`/api/workspaces/${workspaceId}/available-users`)
-      .then((res) => res.json())
-      .then(setAvailableUsers);
-  }, [workspaceId, members]);
+    dispatch(hydrateWorkspaceData({ workspaceId, members: serverMembers }));
+    dispatch(loadWorkspaceData(workspaceId)).then(() => {
+      // loadWorkspaceData also fetches members — we only need the availableUsers part,
+      // but it's fine since it replaces state with fresh data.
+    });
+  }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAdd = async () => {
     if (!selectedUserId) return;
-    setLoading(true);
-    try {
-      await fetch(`/api/workspaces/${workspaceId}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: selectedUserId }),
-      });
-      setSelectedUserId("");
-      router.refresh();
-    } finally {
-      setLoading(false);
+    setSelectedUserId("");
+    const result = await dispatch(addMember({ workspaceId, userId: selectedUserId }));
+    if (addMember.rejected.match(result)) {
+      toast.error("Error al agregar miembro");
     }
   };
 
   const handleRemove = async (userId: string) => {
-    await fetch(`/api/workspaces/${workspaceId}/members/${userId}`, {
-      method: "DELETE",
-    });
-    router.refresh();
+    const result = await dispatch(removeMember({ workspaceId, userId }));
+    if (removeMember.rejected.match(result)) {
+      toast.error("Error al eliminar miembro");
+    }
   };
+
+  const displayMembers = status === "succeeded" ? members : serverMembers;
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -81,15 +71,15 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
         <Users className="h-5 w-5 text-emerald-400" />
         <h2 className="font-display text-lg font-semibold">Miembros</h2>
         <span className="ml-auto text-xs text-muted-foreground">
-          {members.length} miembro{members.length !== 1 ? "s" : ""}
+          {displayMembers.length} miembro{displayMembers.length !== 1 ? "s" : ""}
         </span>
       </div>
 
       <div className="mb-4 flex flex-col gap-2">
-        {members.length === 0 && (
+        {displayMembers.length === 0 && (
           <p className="text-sm text-muted-foreground">No hay miembros todavia.</p>
         )}
-        {members.map((m) => (
+        {displayMembers.map((m) => (
           <div
             key={m.userId}
             className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
@@ -139,7 +129,7 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
           </Select>
           <Button
             onClick={handleAdd}
-            disabled={!selectedUserId || loading}
+            disabled={!selectedUserId}
             size="icon"
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >

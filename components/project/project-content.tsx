@@ -11,6 +11,8 @@ import { ProjectNotes } from "@/components/project/project-notes";
 import { ProjectLinks } from "@/components/project/project-links";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAppDispatch } from "@/lib/store/hooks";
+import { deleteProject } from "@/lib/store/slices/project.slice";
 
 interface TaskTag {
   id: string;
@@ -109,6 +111,7 @@ export function ProjectContent({
   users,
   hasUsers,
 }: ProjectContentProps) {
+  const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState("tablero");
   const router = useRouter();
 
@@ -118,16 +121,11 @@ export function ProjectContent({
       action: {
         label: "Eliminar",
         onClick: async () => {
-          try {
-            const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
-            if (res.ok) {
-              toast.success("Proyecto eliminado");
-              router.push(`/workspace/${workspaceId}?section=proyectos`);
-              router.refresh();
-            } else {
-              toast.error("Error al eliminar el proyecto");
-            }
-          } catch {
+          const result = await dispatch(deleteProject(projectId));
+          if (deleteProject.fulfilled.match(result)) {
+            toast.success("Proyecto eliminado");
+            router.push(`/workspace/${workspaceId}?section=proyectos`);
+          } else {
             toast.error("Error al eliminar el proyecto");
           }
         },

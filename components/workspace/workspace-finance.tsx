@@ -2,7 +2,17 @@
 "use client";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import {
+  loadFinanceData,
+  createAccount, updateAccount, deleteAccount,
+  createCategory, updateCategory, deleteCategory,
+  createTransaction, updateTransaction, deleteTransaction,
+  createBudget, updateBudget, deleteBudget,
+  createTransfer,
+  selectAccounts, selectCategories, selectTransactions, selectBudgets, selectFinanceStatus,
+} from "@/lib/store/slices/finance.slice";
 import {
   DollarSign,
   Plus,
@@ -123,18 +133,17 @@ interface WorkspaceFinanceProps {
 }
 
 export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
-  const [activeTab, setActiveTab] = useState("transacciones");
-    // ─── Reportes: Ejemplo de gráfica con Recharts ───
-    // Puedes expandir esto con más gráficas y filtros según lo planificado
+  const dispatch = useAppDispatch();
+  const accounts = useAppSelector(selectAccounts);
+  const categories = useAppSelector(selectCategories);
+  const transactions = useAppSelector(selectTransactions);
+  const budgets = useAppSelector(selectBudgets);
+  const financeStatus = useAppSelector(selectFinanceStatus);
+  const loading = financeStatus === "loading" || financeStatus === "idle";
 
-    // chartData debe definirse después de transactionsByMonth
-    // Colores para pie chart
-    const pieColors = ["#10b981", "#ef4444", "#3b82f6", "#f59e42", "#a78bfa", "#f472b6", "#06b6d4", "#facc15"];
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("transacciones");
+  // Colores para pie chart
+  const pieColors = ["#10b981", "#ef4444", "#3b82f6", "#f59e42", "#a78bfa", "#f472b6", "#06b6d4", "#facc15"];
 
   // Dialog states
   const [accountDialog, setAccountDialog] = useState(false);
@@ -164,8 +173,6 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
       return next;
     });
   }
-
-  const base = `/api/workspaces/${workspaceId}`;
 
   // ─── Helper functions — defined BEFORE first use ────
   const getMonthKey = (dateStr: string) => {
@@ -239,53 +246,32 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
       }));
   };
 
-  // ─── Data fetching ──────────────────────────────────
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [accRes, catRes, txnRes, budRes] = await Promise.all([
-        fetch(`${base}/accounts`),
-        fetch(`${base}/categories`),
-        fetch(`${base}/transactions`),
-        fetch(`${base}/budgets`),
-      ]);
-      const acc = accRes.ok ? await accRes.json() : [];
-      const cat = catRes.ok ? await catRes.json() : [];
-      const txn = txnRes.ok ? await txnRes.json() : [];
-      const bud = budRes.ok ? await budRes.json() : [];
-      setAccounts(Array.isArray(acc) ? acc : []);
-      setCategories(Array.isArray(cat) ? cat : []);
-      setTransactions(Array.isArray(txn) ? txn : []);
-      setBudgets(Array.isArray(bud) ? bud : []);
-    } catch {
-      toast.error("Error al cargar datos financieros");
-    } finally {
-      setLoading(false);
-    }
+  // ─── Data fetching via Redux ─────────────────────────
+  useEffect(() => {
+    dispatch(loadFinanceData(workspaceId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
-
   // ─── CRUD helpers ───────────────────────────────────
-  async function handleDelete(endpoint: string, label: string) {
+  type DeleteEntity = "account" | "category" | "transaction" | "budget";
+
+  function handleDelete(entity: DeleteEntity, id: string, label: string) {
     toast.warning(`Eliminar "${label}"?`, {
       description: "Esta acción es permanente.",
       action: {
         label: "Eliminar",
         onClick: async () => {
-          try {
-            const res = await fetch(endpoint, { method: "DELETE" });
-            if (res.ok) {
-              toast.success("Eliminado correctamente");
-              fetchAll();
-            } else {
-              toast.error("Error al eliminar");
-            }
-          } catch {
+          const thunks = {
+            account: deleteAccount({ workspaceId, id }),
+            category: deleteCategory({ workspaceId, id }),
+            transaction: deleteTransaction({ workspaceId, id }),
+            budget: deleteBudget({ workspaceId, id }),
+          } as const;
+          const result = await dispatch(thunks[entity]);
+          if ((result as { error?: unknown }).error) {
             toast.error("Error al eliminar");
+          } else {
+            toast.success("Eliminado correctamente");
           }
         },
       },
@@ -294,19 +280,10 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
   }
 
   async function handleBudgetStatus(budget: Budget, status: "approved" | "rejected") {
-    try {
-      const res = await fetch(`${base}/budgets/${budget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        toast.success(status === "approved" ? "Presupuesto aprobado" : "Presupuesto rechazado");
-        fetchAll();
-      } else {
-        toast.error("Error al actualizar estado");
-      }
-    } catch {
+    const result = await dispatch(updateBudget({ workspaceId, id: budget.id, data: { status } }));
+    if (updateBudget.fulfilled.match(result)) {
+      toast.success(status === "approved" ? "Presupuesto aprobado" : "Presupuesto rechazado");
+    } else {
       toast.error("Error al actualizar estado");
     }
   }
@@ -411,24 +388,17 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     const handleSubmit = async () => {
       if (!name.trim()) return;
       setSaving(true);
-      try {
-        const url = editing ? `${base}/accounts/${editing.id}` : `${base}/accounts`;
-        const method = editing ? "PATCH" : "POST";
-        const res = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, currency, balance: parseFloat(balance) }),
-        });
-        if (res.ok) {
-          toast.success(editing ? "Cuenta actualizada" : "Cuenta creada");
-          setAccountDialog(false);
-          setEditingItem(null);
-          fetchAll();
-        } else {
-          toast.error("Error al guardar cuenta");
-        }
-      } finally {
-        setSaving(false);
+      const data = { name, description, currency, balance: parseFloat(balance) };
+      const result = await (editing
+        ? dispatch(updateAccount({ workspaceId, id: editing.id, data }))
+        : dispatch(createAccount({ workspaceId, data })));
+      setSaving(false);
+      if ((result as { error?: unknown }).error) {
+        toast.error("Error al guardar cuenta");
+      } else {
+        toast.success(editing ? "Cuenta actualizada" : "Cuenta creada");
+        setAccountDialog(false);
+        setEditingItem(null);
       }
     };
 
@@ -494,26 +464,17 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     const handleSubmit = async () => {
       if (!name.trim()) return;
       setSaving(true);
-      try {
-        const url = editing
-          ? `${base}/categories/${editing.id}`
-          : `${base}/categories`;
-        const method = editing ? "PATCH" : "POST";
-        const res = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, type, color }),
-        });
-        if (res.ok) {
-          toast.success(editing ? "Categoría actualizada" : "Categoría creada");
-          setCategoryDialog(false);
-          setEditingItem(null);
-          fetchAll();
-        } else {
-          toast.error("Error al guardar categoría");
-        }
-      } finally {
-        setSaving(false);
+      const data = { name, type, color };
+      const result = await (editing
+        ? dispatch(updateCategory({ workspaceId, id: editing.id, data }))
+        : dispatch(createCategory({ workspaceId, data })));
+      setSaving(false);
+      if ((result as { error?: unknown }).error) {
+        toast.error("Error al guardar categoría");
+      } else {
+        toast.success(editing ? "Categoría actualizada" : "Categoría creada");
+        setCategoryDialog(false);
+        setEditingItem(null);
       }
     };
 
@@ -584,32 +545,17 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     const handleSubmit = async () => {
       if (!amount || !accountId || !categoryId) return;
       setSaving(true);
-      try {
-        const url = editing?.id
-          ? `${base}/transactions/${editing.id}`
-          : `${base}/transactions`;
-        const method = editing?.id ? "PATCH" : "POST";
-        const res = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: parseFloat(amount),
-            description,
-            date,
-            accountId,
-            categoryId,
-          }),
-        });
-        if (res.ok) {
-          toast.success(editing?.id ? "Transacción actualizada" : "Transacción creada");
-          setTransactionDialog(false);
-          setEditingItem(null);
-          fetchAll();
-        } else {
-          toast.error("Error al guardar transacción");
-        }
-      } finally {
-        setSaving(false);
+      const data = { amount: parseFloat(amount), description, date, accountId, categoryId };
+      const result = await (editing?.id
+        ? dispatch(updateTransaction({ workspaceId, id: editing.id, data }))
+        : dispatch(createTransaction({ workspaceId, data })));
+      setSaving(false);
+      if ((result as { error?: unknown }).error) {
+        toast.error("Error al guardar transacción");
+      } else {
+        toast.success(editing?.id ? "Transacción actualizada" : "Transacción creada");
+        setTransactionDialog(false);
+        setEditingItem(null);
       }
     };
 
@@ -702,29 +648,21 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     const handleSubmit = async () => {
       if (!fromAccountId || !toAccountId || !parsedAmount) return;
       setSaving(true);
-      try {
-        const res = await fetch(`${base}/transfers`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fromAccountId,
-            toAccountId,
-            amount: parsedAmount,
-            rate: parsedRate,
-            description,
-            date,
-          }),
-        });
-        if (res.ok) {
-          toast.success("Transferencia realizada");
-          setTransferDialog(false);
-          fetchAll();
-        } else {
-          const data = await res.json();
-          toast.error(data.error || "Error al realizar transferencia");
-        }
-      } finally {
-        setSaving(false);
+      const result = await dispatch(createTransfer({
+        workspaceId,
+        fromAccountId,
+        toAccountId,
+        amount: parsedAmount,
+        rate: parsedRate,
+        description,
+        date,
+      }));
+      setSaving(false);
+      if ((result as { error?: unknown }).error) {
+        toast.error("Error al realizar transferencia");
+      } else {
+        toast.success("Transferencia realizada");
+        setTransferDialog(false);
       }
     };
 
@@ -835,24 +773,17 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     const handleSubmit = async () => {
       if (!name.trim() || !amount) return;
       setSaving(true);
-      try {
-        const url = editing ? `${base}/budgets/${editing.id}` : `${base}/budgets`;
-        const method = editing ? "PATCH" : "POST";
-        const res = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, amount: parseFloat(amount), description }),
-        });
-        if (res.ok) {
-          toast.success(editing ? "Presupuesto actualizado" : "Presupuesto creado");
-          setBudgetDialog(false);
-          setEditingItem(null);
-          fetchAll();
-        } else {
-          toast.error("Error al guardar presupuesto");
-        }
-      } finally {
-        setSaving(false);
+      const data = { name, amount: parseFloat(amount), description };
+      const result = await (editing
+        ? dispatch(updateBudget({ workspaceId, id: editing.id, data }))
+        : dispatch(createBudget({ workspaceId, data })));
+      setSaving(false);
+      if ((result as { error?: unknown }).error) {
+        toast.error("Error al guardar presupuesto");
+      } else {
+        toast.success(editing ? "Presupuesto actualizado" : "Presupuesto creado");
+        setBudgetDialog(false);
+        setEditingItem(null);
       }
     };
 
@@ -1282,7 +1213,8 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                                       className="h-6 w-6 text-destructive hover:text-destructive"
                                       onClick={() =>
                                         handleDelete(
-                                          `${base}/transactions/${txn.id}`,
+                                          "transaction",
+                                          txn.id,
                                           txn.description || txn.category.name
                                         )
                                       }
@@ -1498,7 +1430,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                               variant="outline"
                               size="sm"
                               className="flex-1 text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(`${base}/accounts/${acc.id}`, acc.name)}
+                              onClick={() => handleDelete("account", acc.id, acc.name)}
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1" />
                               Eliminar
@@ -1635,7 +1567,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive"
                                 onClick={() =>
-                                  handleDelete(`${base}/categories/${cat.id}`, cat.name)
+                                  handleDelete("category", cat.id, cat.name)
                                 }
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1680,7 +1612,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive"
                                 onClick={() =>
-                                  handleDelete(`${base}/categories/${cat.id}`, cat.name)
+                                  handleDelete("category", cat.id, cat.name)
                                 }
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1798,7 +1730,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(`${base}/budgets/${bud.id}`, bud.name)}
+                            onClick={() => handleDelete("budget", bud.id, bud.name)}
                           >
                             <Trash2 className="h-3.5 w-3.5 mr-1" />
                             Eliminar
