@@ -88,7 +88,9 @@ El mapa `_rollback` en cada slice almacena snapshots del array afectado, indexad
 | `workspace-finance.tsx` | `finance` | Cuentas, categorías, transacciones, presupuestos, transferencias |
 | `workspace-members.tsx` | `workspace` | Agregar/quitar miembros, lista de usuarios disponibles |
 | `workspace-projects.tsx` | `project` | Eliminar proyecto |
+| `project-content.tsx` | `project` | Eliminar proyecto (desde vista de detalle) |
 | `project-kanban.tsx` | `task` | Mover tareas (drag/drop), eliminar tareas, gestionar columnas |
+| `task-detail-dialog.tsx` | `task` | Editar tarea completa (título, descripción, columna, prioridad, asignado, fecha, tags) |
 
 ### Hydration desde Server Components
 

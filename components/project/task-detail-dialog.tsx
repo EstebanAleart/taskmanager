@@ -22,8 +22,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Calendar, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAppDispatch } from "@/lib/store/hooks";
+import { updateTask } from "@/lib/store/slices/task.slice";
 
 interface TaskTag {
   id: string;
@@ -100,7 +102,7 @@ export function TaskDetailDialog({
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split("T")[0] : "");
   const [tags, setTags] = useState(task.tags.map((t) => t.name).join(", "));
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const dispatch = useAppDispatch();
 
   // Reset form when task changes
   useEffect(() => {
@@ -116,11 +118,10 @@ export function TaskDetailDialog({
   const handleSave = async () => {
     if (!title.trim() || !assigneeId) return;
     setLoading(true);
-    try {
-      await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    const result = await dispatch(
+      updateTask({
+        id: task.id,
+        data: {
           title: title.trim(),
           description: description.trim(),
           columnId,
@@ -131,12 +132,14 @@ export function TaskDetailDialog({
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
-        }),
-      });
+        },
+      })
+    );
+    setLoading(false);
+    if (updateTask.fulfilled.match(result)) {
       onOpenChange(false);
-      router.refresh();
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error("Error al guardar la tarea");
     }
   };
 

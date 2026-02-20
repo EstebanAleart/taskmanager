@@ -106,6 +106,7 @@ interface CreateTaskPayload {
   dueDate?: string;
   assigneeId?: string;
   projectId: string;
+  tags?: string[];
 }
 
 export const createTask = createAsyncThunk(
@@ -295,7 +296,15 @@ const taskSlice = createSlice({
           state._rollback[action.meta.requestId] = {
             tasks: state.tasks.map((t) => ({ ...t })),
           };
-          Object.assign(task, action.meta.arg.data);
+          const { tags, ...rest } = action.meta.arg.data;
+          Object.assign(task, rest);
+          if (tags !== undefined) {
+            task.tags = tags.map((name) => ({
+              id: `__temp_tag__${name}`,
+              name,
+              color: "",
+            }));
+          }
         }
       })
       .addCase(updateTask.fulfilled, (state, action) => {
