@@ -16,7 +16,7 @@ export default function GlobalError({
               Algo salio mal
             </h2>
             <button
-              onClick={() => reset()}
+              onClick={() => (typeof reset === "function" ? reset() : window.location.reload())}
               style={{
                 padding: "0.5rem 1rem",
                 backgroundColor: "#2563eb",
