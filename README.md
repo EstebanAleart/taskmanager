@@ -275,6 +275,12 @@ Todas las API routes estan protegidas con doble verificacion:
 
 Para proyectos y tareas, la verificacion sube por la cadena: tarea -> proyecto -> workspace -> membresia.
 
+### Manejo de errores en API routes
+
+Todas las API routes de finanzas y entidades principales tienen `try/catch` global. En Next.js 16 (Turbopack), las excepciones no capturadas en route handlers producen 404 en lugar de 500, ocultando el error real. Con el `try/catch`:
+- Errores de Prisma (tabla inexistente, constraint violation) → 500 con mensaje + `console.error` en terminal
+- El error real es visible en los logs del servidor de desarrollo
+
 ## Modelos de datos
 
 ```
