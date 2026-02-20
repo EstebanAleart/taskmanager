@@ -21,10 +21,10 @@ export async function PATCH(
       return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
     }
 
-    const transaction = await prisma.financialTransaction.findFirst({
+    const oldTxn = await prisma.financialTransaction.findFirst({
       where: { id: transactionId, workspaceId },
     });
-    if (!transaction) {
+    if (!oldTxn) {
       return NextResponse.json({ error: "Transacción no encontrada" }, { status: 404 });
     }
 
@@ -43,6 +43,7 @@ export async function PATCH(
       return NextResponse.json({ error: "No hay campos para actualizar." }, { status: 400 });
     }
 
+    // El balance se computa dinámicamente en GET /accounts desde todas las transacciones
     const updated = await prisma.financialTransaction.update({
       where: { id: transactionId },
       data,
@@ -81,13 +82,14 @@ export async function DELETE(
       return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
     }
 
-    const transaction = await prisma.financialTransaction.findFirst({
+    const txn = await prisma.financialTransaction.findFirst({
       where: { id: transactionId, workspaceId },
     });
-    if (!transaction) {
+    if (!txn) {
       return NextResponse.json({ error: "Transacción no encontrada" }, { status: 404 });
     }
 
+    // El balance se recomputa en GET /accounts; solo eliminamos la transacción
     await prisma.financialTransaction.delete({ where: { id: transactionId } });
 
     return NextResponse.json({ success: true });

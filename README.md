@@ -251,11 +251,14 @@ Las secciones del workspace se manejan con `?section=X` en la URL:
 ### Finanzas
 - Seccion accesible desde el sidebar del workspace (`?section=finanzas`)
 - 4 tabs internas: Transacciones, Cuentas, Categorias, Presupuestos
-- **Cuentas**: CRUD completo (nombre, descripcion, moneda ARS/USD/EUR, balance). Cards con balance formateado y responsive
+- **Cuentas**: CRUD completo (nombre, descripcion, moneda ARS/USD/EUR/BRL/UYU, balance inicial). Balance mostrado = balance inicial + suma de todas las transacciones (calculado en GET /accounts)
 - **Categorias**: CRUD con tipo income/expense. Vista agrupada por tipo con iconos verde/rojo
-- **Transacciones**: CRUD vinculado a cuenta + categoria + proyecto (opcional). Lista con iconos de ingreso/gasto, fecha, monto formateado, badge de categoria
+- **Transacciones**: CRUD vinculado a cuenta + categoria + proyecto (opcional). Monto mostrado con la moneda de la cuenta seleccionada. Lista con iconos de ingreso/gasto, fecha, monto formateado por moneda, badge de categoria
 - **Presupuestos**: CRUD basico (nombre, monto, descripcion). Cards con monto formateado y responsive
-- Filtro por mes con navegacion (anterior/siguiente) y opcion "Todos". Cards resumen de ingresos/gastos/balance del periodo
+- **Transferencias entre cuentas**: boton "Transferir" visible cuando hay 2+ cuentas. Dialog con cuenta origen, destino, monto, tasa de cambio y preview del monto en moneda destino. Crea 2 transacciones (egreso + ingreso) que impactan automaticamente en el balance de cada cuenta
+- **Modelo de balance (sin tabla intermedia)**: `FinancialAccount.balance` = saldo de partida (inmutable luego de crear la cuenta). Balance real mostrado = balance_inicial + sum(income txns) - sum(expense txns), calculado en GET /accounts incluyendo transferencias, historico completo y transacciones de cualquier fecha
+- **Filtro por mes en Cuentas y Transacciones**: navegacion anterior/siguiente/"Todos" compartida. Balance de cuenta es dinámico: "Todos" = balance acumulado total; mes seleccionado = balance al cierre de ese mes (balance_total - impacto de transacciones posteriores al mes). Cada cuenta muestra también resumen del periodo (Ingresos/Gastos/Neto) y desglose mensual completo
+- **Desglose mensual por cuenta**: calculado client-side agrupando transactions por `accountId` + mes. No requiere tabla adicional
 - Presupuestos con estado (pending/approved/rejected) y accion de convertir a transaccion
 - Todas las operaciones usan Dialog de shadcn para crear/editar y Sonner toast para confirmar eliminacion
 - Requiere al menos una cuenta y una categoria para crear transacciones
@@ -370,6 +373,8 @@ FinancialTransaction ──< TransactionAttachment
 | POST | `/api/workspaces/[workspaceId]/budgets` | Crear presupuesto |
 | PATCH | `/api/workspaces/[workspaceId]/budgets/[budgetId]` | Editar presupuesto |
 | DELETE | `/api/workspaces/[workspaceId]/budgets/[budgetId]` | Eliminar presupuesto |
+| **Finanzas — Transferencias** | | |
+| POST | `/api/workspaces/[workspaceId]/transfers` | Transferir entre cuentas (body: fromAccountId, toAccountId, amount, rate?, description?, date?) |
 
 ### Notas para IA
 - Todos los endpoints validan sesión y membresía antes de operar.
@@ -379,6 +384,9 @@ FinancialTransaction ──< TransactionAttachment
 - **Modelos de finanzas:** `prisma/schema.prisma` (sección FINANCE MODULE, línea ~229)
 - **Patrón de datos:** Finanzas usa fetch client-side (useEffect + fetch a API routes), no server queries
 - **Migraciones:** `prisma/migrations/migrationFinanzas/migrationFinanzas.sql` contiene la migración SQL para Supabase
+- **Transferencias:** `POST /transfers` crea 2 transacciones atómicas (egreso en fromAccount, ingreso en toAccount) con categoría auto-creada "Transferencia". Soporta tasa de cambio (`rate`). No modifica `balance` directamente — el balance se recomputa en GET /accounts
+- **Modelo de balance:** `FinancialAccount.balance` = saldo de partida (set al crear la cuenta, no se modifica por transacciones). `GET /accounts` retorna `balance = stored + sum(tx impacts)` incluyendo todas las transacciones históricas. Transacciones CRUD (POST/PATCH/DELETE) NO tocan el campo `balance` de la cuenta. Esto garantiza que transacciones de cualquier fecha (históricas o nuevas) impacten siempre correctamente
+- **Desglose mensual:** calculado client-side desde el array `transactions` agrupando por `accountId` + mes. La tabla `FinancialTransaction` (con `accountId`, `date`, `amount`, `category.type`) tiene todo el detalle necesario para reconstruir el historial completo mes a mes por cuenta. No se necesita tabla intermedia
 
 ---
 
@@ -400,7 +408,8 @@ app/
 │       ├── categories/{route.ts,[categoryId]/route.ts}
 │       ├── transactions/{route.ts,[transactionId]/route.ts}
 │       ├── transactions/[transactionId]/attachments/{route.ts,[attachmentId]/route.ts}
-│       └── budgets/{route.ts,[budgetId]/route.ts}
+│       ├── budgets/{route.ts,[budgetId]/route.ts}
+│       └── transfers/route.ts
 ├── dashboard/page.tsx
 ├── workspace/[workspaceId]/
 │   ├── layout.tsx                      # Server: auth guard + sidebar data

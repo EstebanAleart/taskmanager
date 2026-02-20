@@ -21,9 +21,23 @@ export async function GET(
       return NextResponse.json({ error: "No tienes acceso a este workspace" }, { status: 403 });
     }
 
-    const accounts = await prisma.financialAccount.findMany({
+    const rawAccounts = await prisma.financialAccount.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
+      include: {
+        transactions: {
+          select: { amount: true, category: { select: { type: true } } },
+        },
+      },
+    });
+
+    // Balance real = balance inicial (guardado) + impacto de todas las transacciones
+    const accounts = rawAccounts.map(({ transactions, ...acc }) => {
+      const txImpact = transactions.reduce(
+        (sum, t) => (t.category.type === "income" ? sum + t.amount : sum - t.amount),
+        0
+      );
+      return { ...acc, balance: acc.balance + txImpact };
     });
 
     return NextResponse.json(accounts);

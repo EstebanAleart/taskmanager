@@ -80,6 +80,7 @@ export async function POST(
       return NextResponse.json({ error: "Categoría no encontrada en este workspace" }, { status: 404 });
     }
 
+    // El balance de la cuenta se computa dinámicamente desde las transacciones en GET /accounts
     const transaction = await prisma.financialTransaction.create({
       data: {
         amount,

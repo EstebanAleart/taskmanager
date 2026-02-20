@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,7 @@ interface Transaction {
   amount: number;
   description: string;
   date: string;
-  account: { id: string; name: string };
+  account: { id: string; name: string; currency: string };
   category: { id: string; name: string; type: string; color: string };
   project: { id: string; name: string; color: string } | null;
   createdBy: { id: string; name: string; initials: string };
@@ -90,6 +91,14 @@ const CATEGORY_COLORS = [
   { value: "text-cyan-500", label: "Cyan" },
 ];
 
+const CURRENCIES = [
+  { value: "ARS", label: "ARS — Peso argentino" },
+  { value: "USD", label: "USD — Dólar" },
+  { value: "EUR", label: "EUR — Euro" },
+  { value: "BRL", label: "BRL — Real brasileño" },
+  { value: "UYU", label: "UYU — Peso uruguayo" },
+];
+
 const BUDGET_STATUS: Record<string, { label: string; color: string; bgColor: string }> = {
   pending: { label: "Pendiente", color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
   approved: { label: "Aprobado", color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
@@ -114,6 +123,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
   const [categoryDialog, setCategoryDialog] = useState(false);
   const [transactionDialog, setTransactionDialog] = useState(false);
   const [budgetDialog, setBudgetDialog] = useState(false);
+  const [transferDialog, setTransferDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<Record<string, unknown> | null>(null);
 
   // Month filter: null = all, string = "YYYY-MM"
@@ -152,6 +162,24 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
       month: "short",
       year: "numeric",
     });
+
+  // Per-account monthly breakdown (computed client-side from existing transactions)
+  const getAccountMonthlyBreakdown = (accountId: string) => {
+    const accountTxns = transactions.filter((t) => t.account.id === accountId);
+    const byMonth = accountTxns.reduce<Record<string, Transaction[]>>((acc, txn) => {
+      const key = getMonthKey(txn.date);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(txn);
+      return acc;
+    }, {});
+    return Object.keys(byMonth)
+      .sort((a, b) => b.localeCompare(a))
+      .map((key) => ({
+        key,
+        label: formatMonthLabel(key),
+        totals: getMonthTotals(byMonth[key]),
+      }));
+  };
 
   // ─── Data fetching ──────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -281,7 +309,6 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
 
   const filteredSortedMonths = selectedMonth ? [selectedMonth] : sortedMonths;
 
-  // ✅ Now safe — getMonthTotals is defined above
   const globalTotals = getMonthTotals(filteredTransactions);
 
   // ─── Account form ───────────────────────────────────
@@ -342,9 +369,11 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ARS">ARS</SelectItem>
-              <SelectItem value="USD">USD</SelectItem>
-              <SelectItem value="EUR">EUR</SelectItem>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -355,6 +384,9 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
             value={balance}
             onChange={(e) => setBalance(e.target.value)}
           />
+          <p className="text-xs text-muted-foreground">
+            Saldo de partida antes de registrar transacciones. El balance real se calcula sumando todas las transacciones.
+          </p>
         </div>
         <Button onClick={handleSubmit} disabled={saving} className="w-full">
           {saving ? "Guardando..." : editing ? "Actualizar" : "Crear cuenta"}
@@ -459,6 +491,8 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     );
     const [saving, setSaving] = useState(false);
 
+    const selectedAccount = accounts.find((a) => a.id === accountId);
+
     const handleSubmit = async () => {
       if (!amount || !accountId || !categoryId) return;
       setSaving(true);
@@ -494,27 +528,6 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     return (
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">Monto</label>
-          <Input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Fecha</label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Descripción</label>
-          <Input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Opcional"
-          />
-        </div>
-        <div className="space-y-1">
           <label className="text-sm font-medium">Cuenta</label>
           <Select value={accountId} onValueChange={setAccountId}>
             <SelectTrigger>
@@ -528,6 +541,37 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">
+            Monto{selectedAccount ? ` (${selectedAccount.currency})` : ""}
+          </label>
+          <div className="relative">
+            {selectedAccount && (
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
+                {selectedAccount.currency}
+              </span>
+            )}
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className={selectedAccount ? "pl-12" : ""}
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Fecha</label>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Descripción</label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Opcional"
+          />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium">Categoría</label>
@@ -546,6 +590,147 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
         </div>
         <Button onClick={handleSubmit} disabled={saving} className="w-full">
           {saving ? "Guardando..." : editing?.id ? "Actualizar" : "Crear transacción"}
+        </Button>
+      </div>
+    );
+  }
+
+  // ─── Transfer form ──────────────────────────────────
+  function TransferForm() {
+    const [fromAccountId, setFromAccountId] = useState("");
+    const [toAccountId, setToAccountId] = useState("");
+    const [amount, setAmount] = useState("");
+    const [rate, setRate] = useState("1");
+    const [description, setDescription] = useState("");
+    const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+    const [saving, setSaving] = useState(false);
+
+    const fromAccount = accounts.find((a) => a.id === fromAccountId);
+    const toAccount = accounts.find((a) => a.id === toAccountId);
+    const parsedAmount = parseFloat(amount) || 0;
+    const parsedRate = parseFloat(rate) || 1;
+    const toAmount = Math.round(parsedAmount * parsedRate * 100) / 100;
+
+    const handleSubmit = async () => {
+      if (!fromAccountId || !toAccountId || !parsedAmount) return;
+      setSaving(true);
+      try {
+        const res = await fetch(`${base}/transfers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fromAccountId,
+            toAccountId,
+            amount: parsedAmount,
+            rate: parsedRate,
+            description,
+            date,
+          }),
+        });
+        if (res.ok) {
+          toast.success("Transferencia realizada");
+          setTransferDialog(false);
+          fetchAll();
+        } else {
+          const data = await res.json();
+          toast.error(data.error || "Error al realizar transferencia");
+        }
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Cuenta origen</label>
+          <Select value={fromAccountId} onValueChange={setFromAccountId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar cuenta" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts
+                .filter((a) => a.id !== toAccountId)
+                .map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name} ({a.currency}) — {formatCurrency(a.balance, a.currency)}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Cuenta destino</label>
+          <Select value={toAccountId} onValueChange={setToAccountId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar cuenta" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts
+                .filter((a) => a.id !== fromAccountId)
+                .map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name} ({a.currency}) — {formatCurrency(a.balance, a.currency)}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              Monto{fromAccount ? ` (${fromAccount.currency})` : ""}
+            </label>
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Tasa de cambio</label>
+            <Input
+              type="number"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              placeholder="1"
+              step="0.0001"
+            />
+          </div>
+        </div>
+        {fromAccount && toAccount && parsedAmount > 0 && (
+          <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm flex items-center gap-2">
+            <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground">Recibirá:</span>
+            <span className="font-semibold">
+              {formatCurrency(toAmount, toAccount.currency)}
+            </span>
+            {fromAccount.currency !== toAccount.currency && (
+              <span className="text-xs text-muted-foreground ml-auto">
+                tasa: {rate}
+              </span>
+            )}
+          </div>
+        )}
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Fecha</label>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Descripción</label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Opcional"
+          />
+        </div>
+        <Button
+          onClick={handleSubmit}
+          disabled={saving || !fromAccountId || !toAccountId || !parsedAmount}
+          className="w-full"
+        >
+          {saving ? "Transfiriendo..." : "Realizar transferencia"}
         </Button>
       </div>
     );
@@ -831,7 +1016,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                                   )}
                                 >
                                   {txn.category.type === "income" ? "+" : "-"}
-                                  {formatCurrency(Math.abs(txn.amount))}
+                                  {formatCurrency(Math.abs(txn.amount), txn.account.currency)}
                                 </p>
                                 <Badge
                                   variant="secondary"
@@ -880,20 +1065,64 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
           {/* ═══ CUENTAS ═══ */}
           {activeTab === "cuentas" && (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {accounts.length} cuenta{accounts.length !== 1 ? "s" : ""}
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setEditingItem(null);
-                    setAccountDialog(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Nueva cuenta
-                </Button>
+              {/* Month filter + actions */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => navigateMonth(-1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <button
+                    onClick={() => setSelectedMonth(null)}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                      selectedMonth === null
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Todos
+                  </button>
+                  {selectedMonth && (
+                    <span className="rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
+                      {formatMonthLabel(selectedMonth)}
+                    </span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => navigateMonth(1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {accounts.length >= 2 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setTransferDialog(true)}
+                    >
+                      <ArrowLeftRight className="h-4 w-4 mr-1" />
+                      Transferir
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setAccountDialog(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nueva cuenta
+                  </Button>
+                </div>
               </div>
 
               {accounts.length === 0 ? (
@@ -901,46 +1130,194 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                   No hay cuentas todavía.
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {accounts.map((acc) => (
-                    <div key={acc.id} className="rounded-xl border bg-card p-4 flex flex-col gap-2">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold">{acc.name}</p>
-                          {acc.description && (
-                            <p className="text-xs text-muted-foreground">{acc.description}</p>
+                <div className="flex flex-col gap-4">
+                  {accounts.map((acc) => {
+                    const breakdown = getAccountMonthlyBreakdown(acc.id);
+
+                    // Transactions for this account in the selected period
+                    const periodTxns = transactions.filter(
+                      (t) =>
+                        t.account.id === acc.id &&
+                        (!selectedMonth || getMonthKey(t.date) === selectedMonth)
+                    );
+                    const periodTotals = getMonthTotals(periodTxns);
+
+                    // Breakdown rows to show (all months or just selected)
+                    const breakdownRows = selectedMonth
+                      ? breakdown.filter((b) => b.key === selectedMonth)
+                      : breakdown;
+
+                    // Balance dinámico según el período seleccionado:
+                    // "Todos"  → balance acumulado total (desde API)
+                    // Mes X    → balance al cierre de ese mes =
+                    //             balance_total - impacto de transacciones POSTERIORES al mes X
+                    const displayBalance = selectedMonth
+                      ? (() => {
+                          const afterImpact = transactions
+                            .filter(
+                              (t) =>
+                                t.account.id === acc.id &&
+                                getMonthKey(t.date) > selectedMonth
+                            )
+                            .reduce(
+                              (sum, t) =>
+                                t.category.type === "income"
+                                  ? sum + t.amount
+                                  : sum - t.amount,
+                              0
+                            );
+                          return acc.balance - afterImpact;
+                        })()
+                      : acc.balance;
+
+                    return (
+                      <div key={acc.id} className="rounded-xl border bg-card overflow-hidden">
+                        <div className="p-4 flex flex-col gap-3">
+                          {/* Name + currency */}
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-semibold">{acc.name}</p>
+                              {acc.description && (
+                                <p className="text-xs text-muted-foreground">{acc.description}</p>
+                              )}
+                            </div>
+                            <Badge variant="secondary">{acc.currency}</Badge>
+                          </div>
+
+                          {/* Balance dinámico */}
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-0.5">
+                              {selectedMonth
+                                ? `Balance al cierre — ${formatMonthLabel(selectedMonth)}`
+                                : "Balance actual"}
+                            </p>
+                            <p
+                              className={cn(
+                                "text-base sm:text-xl font-bold truncate",
+                                displayBalance < 0 && "text-red-500"
+                              )}
+                            >
+                              {formatCurrency(displayBalance, acc.currency)}
+                            </p>
+                          </div>
+
+                          {/* Period summary — siempre visible cuando hay mes seleccionado */}
+                          {(selectedMonth || periodTxns.length > 0) && (
+                            <div className="rounded-lg border bg-muted/20 overflow-hidden">
+                              {selectedMonth && (
+                                <p className="text-xs text-muted-foreground px-3 pt-2 pb-1 font-medium capitalize">
+                                  {formatMonthLabel(selectedMonth)}
+                                </p>
+                              )}
+                              <div className="grid grid-cols-3 gap-px bg-border">
+                                <div className="text-center bg-card px-2 py-2 overflow-hidden">
+                                  <p className="text-xs text-muted-foreground mb-0.5">Ingresos</p>
+                                  <p className="text-xs sm:text-sm font-semibold text-emerald-500 truncate">
+                                    +{formatCurrency(periodTotals.income, acc.currency)}
+                                  </p>
+                                </div>
+                                <div className="text-center bg-card px-2 py-2 overflow-hidden">
+                                  <p className="text-xs text-muted-foreground mb-0.5">Gastos</p>
+                                  <p className="text-xs sm:text-sm font-semibold text-red-500 truncate">
+                                    -{formatCurrency(periodTotals.expense, acc.currency)}
+                                  </p>
+                                </div>
+                                <div className="text-center bg-card px-2 py-2 overflow-hidden">
+                                  <p className="text-xs text-muted-foreground mb-0.5">Neto</p>
+                                  <p
+                                    className={cn(
+                                      "text-xs sm:text-sm font-semibold truncate",
+                                      periodTotals.balance >= 0 ? "text-emerald-500" : "text-red-500"
+                                    )}
+                                  >
+                                    {periodTotals.balance >= 0 ? "+" : ""}
+                                    {formatCurrency(periodTotals.balance, acc.currency)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           )}
+
+                          {/* Edit / Delete */}
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => {
+                                setEditingItem(acc);
+                                setAccountDialog(true);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-1" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(`${base}/accounts/${acc.id}`, acc.name)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Eliminar
+                            </Button>
+                          </div>
                         </div>
-                        <Badge variant="secondary">{acc.currency}</Badge>
+
+                        {/* Monthly breakdown */}
+                        {breakdown.length > 0 && (
+                          <div className="border-t">
+                            <div className="px-4 py-2 bg-muted/20 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              {selectedMonth
+                                ? `Detalle — ${formatMonthLabel(selectedMonth)}`
+                                : "Movimientos por mes"}
+                            </div>
+                            {breakdownRows.length === 0 ? (
+                              <p className="px-4 py-3 text-xs text-muted-foreground">
+                                Sin movimientos en este mes.
+                              </p>
+                            ) : (
+                              <div className="divide-y">
+                                {breakdownRows.map(({ key, label, totals }) => (
+                                  <div
+                                    key={key}
+                                    className={cn(
+                                      "flex items-center justify-between px-4 py-2 text-xs",
+                                      selectedMonth === key && "bg-primary/5"
+                                    )}
+                                  >
+                                    <span className="text-muted-foreground capitalize shrink-0 mr-2">
+                                      {label}
+                                    </span>
+                                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+                                      {totals.income > 0 && (
+                                        <span className="text-emerald-500 whitespace-nowrap">
+                                          +{formatCurrency(totals.income, acc.currency)}
+                                        </span>
+                                      )}
+                                      {totals.expense > 0 && (
+                                        <span className="text-red-500 whitespace-nowrap">
+                                          -{formatCurrency(totals.expense, acc.currency)}
+                                        </span>
+                                      )}
+                                      <span
+                                        className={cn(
+                                          "font-semibold whitespace-nowrap",
+                                          totals.balance >= 0 ? "text-emerald-500" : "text-red-500"
+                                        )}
+                                      >
+                                        = {formatCurrency(totals.balance, acc.currency)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <p className="text-base sm:text-xl font-bold truncate">
-                        {formatCurrency(acc.balance, acc.currency)}
-                      </p>
-                      <div className="flex gap-2 mt-auto">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => {
-                            setEditingItem(acc);
-                            setAccountDialog(true);
-                          }}
-                        >
-                          <Pencil className="h-3.5 w-3.5 mr-1" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(`${base}/accounts/${acc.id}`, acc.name)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Eliminar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1230,6 +1607,15 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
             </DialogTitle>
           </DialogHeader>
           <TransactionForm />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={transferDialog} onOpenChange={setTransferDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transferir entre cuentas</DialogTitle>
+          </DialogHeader>
+          <TransferForm />
         </DialogContent>
       </Dialog>
 
