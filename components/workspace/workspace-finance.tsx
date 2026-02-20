@@ -1,4 +1,6 @@
+
 "use client";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -80,11 +82,15 @@ const SYSTEM_CATEGORY_NAMES = ["Transferencia (entrada)", "Transferencia (salida
 
 // ─── Tabs ────────────────────────────────────────────────
 const FINANCE_TABS = [
+  { id: "dashboard", label: "Dashboard", icon: TrendingUp },
   { id: "transacciones", label: "Transacciones", icon: DollarSign },
   { id: "cuentas", label: "Cuentas", icon: Wallet },
   { id: "categorias", label: "Categorías", icon: Tag },
   { id: "presupuestos", label: "Presupuestos", icon: PiggyBank },
+  { id: "reportes", label: "Reportes", icon: TrendingUp },
 ];
+import { FinanceDashboard } from "../finance/finance-dashboard";
+import { FinanceReports } from "../finance/finance-reports";
 
 const CATEGORY_COLORS = [
   { value: "text-emerald-500", label: "Verde" },
@@ -118,6 +124,12 @@ interface WorkspaceFinanceProps {
 
 export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
   const [activeTab, setActiveTab] = useState("transacciones");
+    // ─── Reportes: Ejemplo de gráfica con Recharts ───
+    // Puedes expandir esto con más gráficas y filtros según lo planificado
+
+    // chartData debe definirse después de transactionsByMonth
+    // Colores para pie chart
+    const pieColors = ["#10b981", "#ef4444", "#3b82f6", "#f59e42", "#a78bfa", "#f472b6", "#06b6d4", "#facc15"];
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1800,6 +1812,21 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
             </div>
           )}
         </>
+      )}
+
+      {/* ═══ DASHBOARD ═══ */}
+      {activeTab === "dashboard" && (
+        <FinanceDashboard workspaceId={workspaceId} />
+      )}
+
+      {/* ═══ REPORTES ═══ */}
+      {activeTab === "reportes" && (
+        <FinanceReports
+          workspaceId={workspaceId}
+          accounts={accounts}
+          categories={categories}
+          projects={[]} // Completa con proyectos si tienes
+        />
       )}
 
       {/* ═══ DIALOGS ═══ */}
