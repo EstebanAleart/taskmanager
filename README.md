@@ -250,7 +250,7 @@ Las secciones del workspace se manejan con `?section=X` en la URL:
 
 ### Finanzas
 - Seccion accesible desde el sidebar del workspace (`?section=finanzas`)
-- 4 tabs internas: Transacciones, Cuentas, Categorias, Presupuestos
+- 6 tabs internas: **Dashboard**, Transacciones, Cuentas, Categorias, Presupuestos, **Reportes**
 - **Cuentas**: CRUD completo (nombre, descripcion, moneda ARS/USD/EUR/BRL/UYU, balance inicial). Balance mostrado = balance inicial + suma de todas las transacciones (calculado en GET /accounts)
 - **Categorias**: CRUD con tipo income/expense. Vista agrupada por tipo con iconos verde/rojo. Nombres `"Transferencia (entrada)"` y `"Transferencia (salida)"` reservados para el sistema (bloqueados en POST/PATCH/DELETE y ocultos en el frontend)
 - **Transacciones**: CRUD vinculado a cuenta + categoria + proyecto (opcional). Monto mostrado con la moneda de la cuenta seleccionada. Lista con iconos de ingreso/gasto, fecha, monto formateado por moneda, badge de categoria
@@ -264,8 +264,59 @@ Las secciones del workspace se manejan con `?section=X` en la URL:
 - Presupuestos con estado (pending/approved/rejected) y accion de convertir a transaccion
 - Todas las operaciones usan Dialog de shadcn para crear/editar y Sonner toast para confirmar eliminacion
 - Requiere al menos una cuenta y una categoria de usuario para crear transacciones
-- **Responsive**: cards de resumen y montos adaptan tamaño de fuente en mobile (`text-xs sm:text-base`), valores con `truncate` para evitar overflow, cabecera de mes con `flex-wrap`
-- Componente: `components/workspace/workspace-finance.tsx`
+- **Responsive**: layout flex-col en mobile para filtros, filas de transaccion en 2 líneas (descripción+monto arriba, fecha+cuenta+badge abajo), desglose de cuenta colapsable con ChevronDown
+- Componente principal: `components/workspace/workspace-finance.tsx`
+
+#### Dashboard de Finanzas (`tab: "dashboard"`)
+- Consume `GET /api/workspaces/[id]/finance/dashboard` → `FinanceAnalyticsService.getDashboard()`
+- **KPI Cards** por moneda: balance neto acumulado, ingresos y gastos del mes actual, variación % vs mes anterior
+- **Balance por cuenta** (BarChart): balance actual de cada cuenta (`FinancialAccount.balance`), coloreado verde/rojo según signo
+- **Evolución mensual** (AreaChart): ingresos, gastos y balance neto por moneda a lo largo del tiempo
+- **Ingresos vs Gastos** (BarChart agrupado): comparativa mensual por moneda
+- **Gastos por categoría** (Donut PieChart): distribución del mes actual por moneda, excluye transferencias
+- **Ingresos por categoría** (Donut PieChart): misma lógica para ingresos del mes actual
+- Componente: `components/finance/finance-dashboard.tsx`
+
+#### Reportes de Finanzas (`tab: "reportes"`)
+- Consume `GET /api/workspaces/[id]/finance/reports?dateFrom=&dateTo=&accountId=&categoryId=&projectId=` → `FinanceAnalyticsService.getReports()`
+- **Filtros**: rango de fechas (desde/hasta), cuenta, categoría, proyecto — todos opcionales y acumulativos
+- **Presupuesto vs Real** (BarChart): suma total de presupuestos vs gasto real del período (nota: Budget no tiene FK a transacciones, comparación es a nivel workspace)
+- **Gastos por cuenta — mensual** (BarChart apilado): evolución de gastos mensuales por cuenta, cada cuenta con color distinto
+- **Top 5 categorías de gasto** (BarChart horizontal): ranking de categorías con mayor gasto en el período
+- **Transacciones por mes** (BarChart): cantidad de operaciones por mes
+- **Gastos por proyecto** (BarChart horizontal): monto gastado en transacciones vinculadas a proyectos (`FinancialTransaction.projectId`)
+- Componente: `components/finance/finance-reports.tsx`
+
+#### Servicio de analytics (`lib/services/finance-analytics.service.ts`)
+- Usa el singleton `prisma` de `@/lib/prisma` (no instancia `PrismaClient` directo)
+- Excluye siempre las transferencias del sistema (`"Transferencia (entrada)"` / `"Transferencia (salida)"`) de todos los cálculos
+- Trabaja con objetos `Date` de Prisma directamente (no `parseISO()` — los campos `DateTime` llegan como `Date`)
+- Filtros de fecha convierten strings de query params a `new Date(dateFrom)` antes de pasarlos a Prisma
+
+#### Gráficos disponibles (Recharts)
+| Componente | Tipo | Datos |
+|---|---|---|
+| `BalanceAreaChart` | AreaChart | Evolución mensual income/expense/balance por moneda |
+| `IncomeExpenseBar` | BarChart | Income vs expense por mes y moneda |
+| `CategoryPie` | PieChart (donut) | Distribución por categoría (gastos o ingresos) del mes actual |
+| `AccountBalanceChart` | BarChart | Balance actual por cuenta (verde/rojo según signo) |
+| `BudgetVsActualChart` | BarChart | Total presupuestado vs gastado real |
+| `AccountStackedChart` | BarChart apilado | Gastos mensuales por cuenta (colores distintos por cuenta) |
+| `TopCategoriesChart` | BarChart horizontal | Top 5 categorías de gasto |
+| `TransactionsPerMonthChart` | BarChart | Cantidad de transacciones por mes |
+| `ProjectExpensesChart` | BarChart horizontal | Gasto total por proyecto vinculado |
+
+#### API routes de analytics
+| Ruta | Descripción |
+|---|---|
+| `GET /api/workspaces/[id]/finance/dashboard` | KPIs, evolución mensual, pie de categorías, balance por cuenta |
+| `GET /api/workspaces/[id]/finance/reports` | Budget vs actual, stacked por cuenta, top categorías, txn count, gasto por proyecto |
+
+#### Notas para IA — módulo de analytics
+- `FinanceDashboard` y `FinanceReports` son client components que hacen `fetch` a sus respectivas API routes
+- El servicio `FinanceAnalyticsService` tiene métodos estáticos `getDashboard()` y `getReports()` con tipos exportados
+- Los gráficos viven en `components/finance/charts/` y son componentes puramente presentacionales (reciben `data` como prop)
+- `recharts` ya está instalado como dependencia del proyecto
 
 ### Eliminacion segura
 - Workspace, proyecto, tarea y entidades financieras con confirmacion via Sonner toast
