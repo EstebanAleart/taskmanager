@@ -15,6 +15,7 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   ArrowLeftRight,
   Search,
@@ -140,6 +141,18 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
   const [filterType, setFilterType] = useState<"" | "income" | "expense">("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
 
+  // Accounts: expanded breakdown per account id
+  const [expandedBreakdown, setExpandedBreakdown] = useState<Set<string>>(new Set());
+
+  function toggleBreakdown(id: string) {
+    setExpandedBreakdown((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const base = `/api/workspaces/${workspaceId}`;
 
   // ─── Helper functions — defined BEFORE first use ────
@@ -152,6 +165,12 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
     const [year, month] = key.split("-");
     const d = new Date(parseInt(year), parseInt(month) - 1);
     return d.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  };
+
+  const formatMonthShort = (key: string) => {
+    const [year, month] = key.split("-");
+    const d = new Date(parseInt(year), parseInt(month) - 1);
+    return d.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
   };
 
   const getMonthTotals = (txns: Transaction[]) => {
@@ -927,8 +946,9 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     Todos
                   </button>
                   {selectedMonth && (
-                    <span className="rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
-                      {formatMonthLabel(selectedMonth)}
+                    <span className="rounded-lg bg-primary/10 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-primary whitespace-nowrap">
+                      <span className="sm:hidden">{formatMonthShort(selectedMonth)}</span>
+                      <span className="hidden sm:inline">{formatMonthLabel(selectedMonth)}</span>
                     </span>
                   )}
                   <Button
@@ -961,7 +981,7 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     placeholder="Buscar por descripción, categoría o cuenta..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
+                    className="pl-9 pr-9"
                   />
                   {searchQuery && (
                     <button
@@ -972,9 +992,9 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center flex-wrap">
                   {/* Type filter */}
-                  <div className="flex rounded-lg border overflow-hidden">
+                  <div className="flex rounded-lg border overflow-hidden shrink-0 self-start sm:self-auto">
                     {(
                       [
                         { v: "", label: "Todos" },
@@ -997,58 +1017,58 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     ))}
                   </div>
 
-                  {/* Account filter */}
-                  {accounts.length > 1 && (
-                    <Select
-                      value={filterAccountId || "__all__"}
-                      onValueChange={(v) => setFilterAccountId(v === "__all__" ? "" : v)}
-                    >
-                      <SelectTrigger className="h-8 text-xs w-auto min-w-[130px]">
-                        <SelectValue placeholder="Todas las cuentas" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">Todas las cuentas</SelectItem>
-                        {accounts.map((a) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.name} ({a.currency})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  {/* Account + category selects — stack on mobile, inline on sm+ */}
+                  <div className="flex flex-col sm:flex-row gap-2 flex-1 min-w-0">
+                    {accounts.length > 1 && (
+                      <Select
+                        value={filterAccountId || "__all__"}
+                        onValueChange={(v) => setFilterAccountId(v === "__all__" ? "" : v)}
+                      >
+                        <SelectTrigger className="h-8 text-xs w-full sm:w-auto sm:min-w-[130px]">
+                          <SelectValue placeholder="Todas las cuentas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">Todas las cuentas</SelectItem>
+                          {accounts.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name} ({a.currency})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
 
-                  {/* Category filter */}
-                  {userCategories.length > 1 && (
-                    <Select
-                      value={filterCategoryId || "__all__"}
-                      onValueChange={(v) => setFilterCategoryId(v === "__all__" ? "" : v)}
-                    >
-                      <SelectTrigger className="h-8 text-xs w-auto min-w-[130px]">
-                        <SelectValue placeholder="Todas las categorías" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">Todas las categorías</SelectItem>
-                        {userCategories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.type === "income" ? "↑" : "↓"} {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                    {userCategories.length > 1 && (
+                      <Select
+                        value={filterCategoryId || "__all__"}
+                        onValueChange={(v) => setFilterCategoryId(v === "__all__" ? "" : v)}
+                      >
+                        <SelectTrigger className="h-8 text-xs w-full sm:w-auto sm:min-w-[130px]">
+                          <SelectValue placeholder="Todas las categorías" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">Todas las categorías</SelectItem>
+                          {userCategories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.type === "income" ? "↑" : "↓"} {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
 
-                  {/* Clear all filters */}
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs text-muted-foreground gap-1"
-                      onClick={clearFilters}
-                    >
-                      <X className="h-3 w-3" />
-                      Limpiar filtros
-                    </Button>
-                  )}
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-muted-foreground gap-1 self-start"
+                        onClick={clearFilters}
+                      >
+                        <X className="h-3 w-3" />
+                        Limpiar filtros
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1184,74 +1204,81 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                           {monthTxns.map((txn) => (
                             <div
                               key={txn.id}
-                              className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
+                              className="flex items-start gap-2.5 px-4 py-3 hover:bg-muted/20 transition-colors"
                             >
+                              {/* Type icon */}
                               {txn.category.type === "income" ? (
-                                <ArrowUpCircle className="h-5 w-5 text-emerald-500 shrink-0" />
+                                <ArrowUpCircle className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
                               ) : (
-                                <ArrowDownCircle className="h-5 w-5 text-red-500 shrink-0" />
+                                <ArrowDownCircle className="h-4 w-4 mt-0.5 text-red-500 shrink-0" />
                               )}
+
+                              {/* Content — 2 lines */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {txn.description || txn.category.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatDate(txn.date)} · {txn.account.name}
-                                  {txn.project && (
-                                    <>
-                                      {" "}
-                                      ·{" "}
-                                      <span style={{ color: txn.project.color }}>
-                                        {txn.project.name}
-                                      </span>
-                                    </>
-                                  )}
-                                </p>
-                              </div>
-                              <div className="text-right shrink-0 max-w-[110px] sm:max-w-[160px]">
-                                <p
-                                  className={cn(
-                                    "text-xs sm:text-sm font-semibold truncate",
-                                    txn.category.type === "income"
-                                      ? "text-emerald-500"
-                                      : "text-red-500"
-                                  )}
-                                >
-                                  {txn.category.type === "income" ? "+" : "-"}
-                                  {formatCurrency(Math.abs(txn.amount), txn.account.currency)}
-                                </p>
-                                <Badge
-                                  variant="secondary"
-                                  className={cn("text-xs max-w-full truncate block", txn.category.color)}
-                                >
-                                  {txn.category.name}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-1 ml-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => {
-                                    setEditingItem(txn);
-                                    setTransactionDialog(true);
-                                  }}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-destructive hover:text-destructive"
-                                  onClick={() =>
-                                    handleDelete(
-                                      `${base}/transactions/${txn.id}`,
-                                      txn.description || txn.category.name
-                                    )
-                                  }
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                                {/* Line 1: description + amount */}
+                                <div className="flex items-baseline gap-2 justify-between">
+                                  <p className="text-sm font-medium truncate leading-snug">
+                                    {txn.description || txn.category.name}
+                                  </p>
+                                  <p
+                                    className={cn(
+                                      "text-sm font-bold shrink-0 tabular-nums",
+                                      txn.category.type === "income"
+                                        ? "text-emerald-500"
+                                        : "text-red-500"
+                                    )}
+                                  >
+                                    {txn.category.type === "income" ? "+" : "-"}
+                                    {formatCurrency(Math.abs(txn.amount), txn.account.currency)}
+                                  </p>
+                                </div>
+
+                                {/* Line 2: date · account · project + badge + actions */}
+                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(txn.date)} · {txn.account.name}
+                                    {txn.project && (
+                                      <>
+                                        {" · "}
+                                        <span style={{ color: txn.project.color }}>
+                                          {txn.project.name}
+                                        </span>
+                                      </>
+                                    )}
+                                  </span>
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn("text-xs shrink-0", txn.category.color)}
+                                  >
+                                    {txn.category.name}
+                                  </Badge>
+                                  <div className="flex items-center gap-0.5 ml-auto">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() => {
+                                        setEditingItem(txn);
+                                        setTransactionDialog(true);
+                                      }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-destructive hover:text-destructive"
+                                      onClick={() =>
+                                        handleDelete(
+                                          `${base}/transactions/${txn.id}`,
+                                          txn.description || txn.category.name
+                                        )
+                                      }
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -1290,8 +1317,9 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                     Todos
                   </button>
                   {selectedMonth && (
-                    <span className="rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
-                      {formatMonthLabel(selectedMonth)}
+                    <span className="rounded-lg bg-primary/10 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-primary whitespace-nowrap">
+                      <span className="sm:hidden">{formatMonthShort(selectedMonth)}</span>
+                      <span className="hidden sm:inline">{formatMonthLabel(selectedMonth)}</span>
                     </span>
                   )}
                   <Button
@@ -1466,19 +1494,31 @@ export function WorkspaceFinance({ workspaceId }: WorkspaceFinanceProps) {
                           </div>
                         </div>
 
-                        {/* Monthly breakdown */}
+                        {/* Monthly breakdown — collapsible */}
                         {breakdown.length > 0 && (
                           <div className="border-t">
-                            <div className="px-4 py-2 bg-muted/20 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                              {selectedMonth
-                                ? `Detalle — ${formatMonthLabel(selectedMonth)}`
-                                : "Movimientos por mes"}
-                            </div>
-                            {breakdownRows.length === 0 ? (
+                            <button
+                              onClick={() => toggleBreakdown(acc.id)}
+                              className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/30 transition-colors"
+                            >
+                              <span className="uppercase tracking-wide">
+                                {selectedMonth
+                                  ? `Detalle — ${formatMonthLabel(selectedMonth)}`
+                                  : "Movimientos por mes"}
+                              </span>
+                              <ChevronDown
+                                className={cn(
+                                  "h-3.5 w-3.5 transition-transform duration-200",
+                                  expandedBreakdown.has(acc.id) && "rotate-180"
+                                )}
+                              />
+                            </button>
+                            {expandedBreakdown.has(acc.id) && breakdownRows.length === 0 && (
                               <p className="px-4 py-3 text-xs text-muted-foreground">
                                 Sin movimientos en este mes.
                               </p>
-                            ) : (
+                            )}
+                            {expandedBreakdown.has(acc.id) && breakdownRows.length > 0 && (
                               <div className="divide-y">
                                 {breakdownRows.map(({ key, label, totals }) => (
                                   <div
