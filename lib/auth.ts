@@ -19,12 +19,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       });
 
       if (dbUser) {
-        // Link auth0Id if not yet linked
-        if (!dbUser.auth0Id && profile?.sub) {
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: { auth0Id: profile.sub },
-          });
+        // Link auth0Id and activate if needed
+        const updates: Record<string, unknown> = {};
+        if (!dbUser.auth0Id && profile?.sub) updates.auth0Id = profile.sub;
+        if (dbUser.status !== "active") updates.status = "active";
+        if (Object.keys(updates).length > 0) {
+          await prisma.user.update({ where: { id: dbUser.id }, data: updates });
         }
       } else {
         // Create user on first login
@@ -54,7 +54,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name,
             email: user.email,
             auth0Id: profile?.sub || null,
-            status: "inactive",
+            status: "active",
             role: "miembro",
             initials,
             departmentId: defaultDept.id,
